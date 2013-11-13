@@ -12,7 +12,7 @@ getTime = realToFrac <$> getPOSIXTime
 #else
 
 import           Control.Applicative ( (<$>) )
-import qualified System.Clock as SysClk 
+import qualified System.Clock as SysClk
 
 getTime :: IO Double
 getTime =
@@ -32,8 +32,8 @@ data Clock = Clock { _frames   :: [Double]
 emptyClock :: Clock
 emptyClock = Clock (replicate 100 0) 0.0 0.0 0.0
 
-tickClock :: Double -> Clock -> Clock 
-tickClock t clk = 
+tickClock :: Double -> Clock -> Clock
+tickClock t clk =
     let fs   = _frames clk
         prev = _timeNow clk
         len  = length fs

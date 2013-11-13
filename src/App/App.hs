@@ -1,4 +1,4 @@
--- | Mostly GLFW stuff. 
+-- | Mostly GLFW stuff.
 -- See http://www.glfw.org/docs/3.0/moving.html#moving_window_handle
 --
 module App.App where
@@ -8,7 +8,7 @@ import App.Input
 import App.TypeClasses
 import Control.Monad.State
 import Data.Maybe
-import System.Exit                   ( exitSuccess )
+import System.Exit                   ( exitSuccess, exitFailure )
 import Graphics.Rendering.OpenGL    hiding ( Matrix )
 import Graphics.UI.GLFW             hiding ( getTime )
 
@@ -20,34 +20,40 @@ data App a = App { _userData   :: a
 
 initializeApp :: a -> IO (App a)
 initializeApp a = do
-    Just win <- initGLFW
-    time     <- getTime
+    mWin <- initGLFW
+    case mWin of
+        Nothing  -> do putStrLn "Could not create a window."
+                       exitFailure
 
-    -- When True this gives us a moment
-    -- to attach an OGL profiler.
-    when False $ do
-        putStrLn "Waiting for any button press..."
-        void getChar
-        return ()
+        Just win -> do makeContextCurrent mWin
+                       time <- getTime
+
+                       -- When True this gives us a moment
+                       -- to attach an OGL profiler.
+                       when False $ do
+                           putStrLn "Waiting for any button press..."
+                           void getChar
+                           return ()
 
 
-    -- Register our resize window function.
-    setWindowSizeCallback win $ Just (\w _ _ -> do
-        clear [ColorBuffer, DepthBuffer]
-        swapBuffers w)
+                       -- Register our resize window function.
+                       setWindowSizeCallback win $ Just (\w _ _ -> do
+                           clear [ColorBuffer, DepthBuffer]
+                           swapBuffers w)
 
-    let clock' = tickClock time emptyClock
-    return App{ _userData   = a
-              , _clock      = clock'
-              , _userInput  = emptyInput
-              , _window     = Just win
-              }
+                       let clock' = tickClock time emptyClock
+                       return App{ _userData   = a
+                                 , _clock      = clock'
+                                 , _userInput  = emptyInput
+                                 , _window     = Just win
+                                 }
 
 startApp :: UserData a => App a -> IO (App a)
 startApp app = do
+    putStrLn "Starting app."
     userData' <- onStart $ _userData app
     let app' = app { _userData = userData' }
-    stepIO (shouldQuit . _userData) stepApp app' 
+    stepIO (shouldQuit . _userData) stepApp app'
 
 -- | Takes a predicate, a stepping function and a
 -- state and loops the stepping function over
@@ -57,13 +63,14 @@ stepIO :: (a -> Bool) -- ^ The predicate.
        -> a           -- ^ The game state.
        -> IO a
 stepIO p g a
-    | p a       = return a
+    | p a       = do putStrLn "Predicate returned False, quitting."
+                     return a
     | otherwise = g a >>= stepIO p g
 
 stepApp :: UserData a => App a -> IO (App a)
 stepApp app =
     case _window app of
-        Just win -> do 
+        Just win -> do
             t      <- getTime
             input' <- getInput win $ _userInput app
 
@@ -76,24 +83,26 @@ stepApp app =
                                  }
 
             userData''' <- onRender userData''
+            clear [ColorBuffer, DepthBuffer]
             swapBuffers win
-            when (shouldQuit userData''') $ onQuit userData''
+            when (shouldQuit userData''') $ onQuit userData'''
             return $ app' { _userData = userData''' }
-        Nothing -> do onQuit $ _userData app
-                      void shutdown 
+        Nothing -> do putStrLn "Window is nothing, quitting."
+                      onQuit $ _userData app
+                      void shutdown
                       return app
 
 initGLFW :: IO (Maybe Window)
 initGLFW = do
     putStrLn "Initializing the OpenGL window and context."
     True <- Graphics.UI.GLFW.init
-    -- Set our window hints. 
+    -- Set our window hints.
     setWindowHints
     -- Get the prime monitor.
     --mMon  <- getPrimaryMonitor
     -- Create our window.
     mWin <- createWindow 800 600 "App" Nothing Nothing
-    when (isJust mWin) $ 
+    when (isJust mWin) $
         do let Just w = mWin
            -- Window will show at upper left corner.
            setWindowPos w 0 0
@@ -108,7 +117,7 @@ initGLFW = do
 setWindowHints :: IO ()
 setWindowHints = do
     defaultWindowHints
-    windowHint $ WindowHint'DepthBits 1 
+    windowHint $ WindowHint'DepthBits 1
 
 shutdown :: IO Bool
 shutdown = do

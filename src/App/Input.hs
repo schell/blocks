@@ -37,10 +37,11 @@ emptyInputState = InputState { _keysPressed = []
 {- Events -}
 -- | Returns the current input state and any input events that occurred
 -- between the current and previous states.
-getInput :: Window   -- ^ The window. 
+getInput :: Window   -- ^ The window.
          -> Input    -- ^ The previous input state.
          -> IO Input -- ^ The new input state and any input events.
 getInput win (Input s _) = do
+    pollEvents
     (keys, buttons, position, (w, h)) <- getCurrentInput win
     let events'     = keyEvents++buttonEvents++moveEvents++winEvents
         keyEvents   = getKeyEventsBetween (_keysPressed s) keys
@@ -95,4 +96,5 @@ keysUsed = addKey Key'Space []
 
 mouseButtonsUsed :: [MouseButton]
 mouseButtonsUsed = [ MouseButton'1 ]
+
 
