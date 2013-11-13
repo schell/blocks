@@ -82,9 +82,10 @@ stepApp app =
                                  , _userData  = userData''
                                  }
 
-            userData''' <- onRender userData''
             clear [ColorBuffer, DepthBuffer]
+            userData''' <- onRender userData''
             swapBuffers win
+
             when (shouldQuit userData''') $ onQuit userData'''
             return $ app' { _userData = userData''' }
         Nothing -> do putStrLn "Window is nothing, quitting."
@@ -118,6 +119,7 @@ setWindowHints :: IO ()
 setWindowHints = do
     defaultWindowHints
     windowHint $ WindowHint'DepthBits 1
+    windowHint $ WindowHint'OpenGLProfile OpenGLProfile'Any
 
 shutdown :: IO Bool
 shutdown = do
