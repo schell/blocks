@@ -4,25 +4,26 @@ module Main where
 import           App.App
 import           App.TypeClasses
 import           App.Input
-import           Resources
-import           Utils
-import           Graphics.Rendering.OpenGL
+import           Renderer
+import           Math.Matrix
 import           Graphics.UI.GLFW
 import           Data.Maybe
 import           Control.Monad
+import           Graphics.Rendering.OpenGL hiding ( renderer, Matrix )
+
 
 -- | The root of our game data.
-data Game = Game { _quit     :: Bool -- ^ Whether or not the game should quit.
-                 , _geometry :: Maybe VertexArrayObject -- ^ A graphic resource.
-                 , _keys     :: [Key] -- ^ Current key state.
+data Game = Game { _quit :: Bool -- ^ Whether or not the game should quit.
+                 , _renderer :: Maybe Renderer -- ^ The renderer.
+                 , _input :: Input -- ^ Game input state.
                  } deriving (Show)
 
 
 -- | Creates a default game.
 newGame :: Game
 newGame = Game { _quit = False
-               , _geometry = Nothing
-               , _keys = []
+               , _renderer = Nothing
+               , _input = emptyInput
                }
 
 
@@ -31,26 +32,33 @@ main = void $ initializeApp newGame >>= startApp
 
 
 instance UserData Game where
-    onStart g = do vao <- initResources 
-                   return g { _geometry = Just vao }
+    -- | When we start up initialize all our rendering resources.
+    onStart g = do rndr <- initRenderer
+                   return g { _renderer = Just rndr }
+    -- | When we receive input, store it in our game to use later.
+    onInput i game = game { _input = i }
+    -- | Step the game forward.
+    onStep _ game = let keys  = _keysPressed $ _inputState $ _input game
+                    in case keys of
+                        Key'Escape:_ -> game { _quit = True }
+                        _            -> game
+    -- | Render the game.
+    onRender game = do when (isJust $ _renderer game) $ do
+                           let renderer = fromJust $ _renderer game
+                               (w,h) = _windowSize $ _inputState $ _input game
+                               pMat  = orthoMatrix 0 (fromIntegral w) 0 (fromIntegral h) 0 1 :: Matrix GLfloat
+                               mvMat = multiply (identityN 4 :: Matrix GLfloat) $ scaleMatrix3d 100 100 1
 
-    onInput i game =
-        let keys  = _keysPressed $ _inputState i
-            game' = game { _keys = keys }
-        in case keys of
-            Key'Escape:_ -> game' { _quit = True }
-            _            -> game'
-
-    onStep _ game = game
-
-    onRender game = do when (isJust $ _geometry game) $ do
-                           drawArrays Triangles 0 3
-                           printError
+                           print (w,h)
+                           viewport $= (Position 0 0, Size (fromIntegral w) (fromIntegral h))
+                           _updateProjection renderer $ concat pMat
+                           _updateModelview renderer $ concat mvMat
+                           _rndrQuad renderer
+                           _rndrTri renderer
                        return game
-
+    -- | Whether or not our game should quit.
     shouldQuit = _quit
+    -- | When quitting, let the user know.
     onQuit _ = putStrLn "Done!"
-
-
 
 

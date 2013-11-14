@@ -20,7 +20,7 @@ data InputEvent = KeyButtonDown Key
 
 data Input = Input { _inputState :: InputState
                    , _inputEvents       :: [InputEvent]
-                   }
+                   } deriving (Show, Eq)
 
 emptyInput :: Input
 emptyInput = Input { _inputEvents = []
