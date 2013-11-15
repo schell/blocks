@@ -27,7 +27,7 @@ data Clock = Clock { _frames   :: [Double]
                    , _avgFPS   :: Double
                    , _timeNow  :: Double
                    , _timePrev :: Double
-                   }
+                   } deriving (Show, Eq, Ord)
 
 emptyClock :: Clock
 emptyClock = Clock (replicate 100 0) 0.0 0.0 0.0
