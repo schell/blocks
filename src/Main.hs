@@ -56,45 +56,34 @@ instance UserData Game where
                                pMat   = orthoMatrix 0 (fromIntegral w) 0 (fromIntegral h) 0 1 :: Matrix GLfloat
                                l      = 20 :: GLfloat
                                mat    = multiply (identityN 4 :: Matrix GLfloat) $ scaleMatrix3d l l 1
-
+                               colors = [ Color4 1.0 0.0 0.0 1.0
+                                        , Color4 0.0 0.0 1.0 1.0
+                                        , Color4 1.0 0.5 0.0 1.0
+                                        , Color4 1.0 1.0 0.0 1.0
+                                        , Color4 0.0 1.0 0.0 1.0
+                                        , Color4 0.5 0.0 0.5 1.0
+                                        , Color4 1.0 0.0 0.0 1.0
+                                        ]
+                               renders= [ _rndrI
+                                        , _rndrJ
+                                        , _rndrL
+                                        , _rndrO
+                                        , _rndrS
+                                        , _rndrT
+                                        , _rndrZ
+                                        ]
+                               (_,mats) = foldl trans (mat,[]) [0..6]
+                               params = zipWith3 (,,) colors mats renders
+                               trans (m,ms) _  =
+                                   let m' = translationMatrix3d 0 (l*2.0) 0 `multiply` m
+                                   in (m',ms ++ [m])
 
                            viewport $= (Position 0 0, Size (fromIntegral w) (fromIntegral h))
                            _updateProjection renderer $ concat pMat
-                           -- Draw an I-piece
-                           _updateColor renderer $ Color4 1.0 0.0 0.0 1.0
-                           _updateModelview renderer $ concat mat
-                           _rndrI renderer
-                           -- Draw a J-piece
-                           let trans m = translationMatrix3d 0 (l*2.0) 0 `multiply` m
-                               mat' = trans mat
-                           _updateColor renderer $ Color4 0.0 0.0 1.0 1.0
-                           _updateModelview renderer $ concat mat'
-                           _rndrJ renderer
-                           -- Draw an L-piece
-                           let mat'' = trans mat'
-                           _updateColor renderer $ Color4 1.0 0.5 0.0 1.0
-                           _updateModelview renderer $ concat mat''
-                           _rndrL renderer
-                           -- Draw an O-piece
-                           let mat''' = trans mat''
-                           _updateColor renderer $ Color4 1.0 1.0 0.0 1.0
-                           _updateModelview renderer $ concat mat'''
-                           _rndrO renderer
-                           -- Draw an S-piece
-                           let mat'''' = trans mat'''
-                           _updateColor renderer $ Color4 0.0 1.0 0.0 1.0
-                           _updateModelview renderer $ concat mat''''
-                           _rndrS renderer
-                           -- Draw a T-piece
-                           let mat''''' = trans mat''''
-                           _updateColor renderer $ Color4 0.5 0.0 0.5 1.0
-                           _updateModelview renderer $ concat mat'''''
-                           _rndrT renderer
-                           -- Draw a Z-piece
-                           let mat'''''' = trans mat'''''
-                           _updateColor renderer $ Color4 1.0 0.0 0.0 1.0
-                           _updateModelview renderer $ concat mat''''''
-                           _rndrZ renderer
+                           forM_ params $ \(c, m, r) -> do
+                               _updateColor renderer $ c
+                               _updateModelview renderer $ concat m
+                               r renderer
 
                        return game
     -- | Whether or not our game should quit.

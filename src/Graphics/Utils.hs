@@ -1,4 +1,4 @@
-module Utils where
+module Graphics.Utils where
 
 import           Graphics.Rendering.OpenGL
 import           System.IO  ( hPutStrLn, stderr )

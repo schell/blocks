@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Graphics.Renderer where
 
-import           Utils
+import           Graphics.Utils
 import           Graphics.Rendering.OpenGL
 import           Graphics.Rendering.OpenGL.Raw
 import           Control.Monad
@@ -106,19 +106,40 @@ bindVBO vbo dsc loc = do
     vertexAttribArray loc $= Enabled
 
 
+drawArraysWith :: BufferObject -> PrimitiveMode -> Int -> IO ()
+drawArraysWith vbo mode num = do
+    bindVBO vbo vertDescriptor $ AttribLocation 0
+    drawArrays mode 0 $ fromIntegral num
+    bindBuffer ArrayBuffer $= Nothing
+
+drawElementsWith :: BufferObject -> BufferObject -> PrimitiveMode -> Int -> IO ()
+drawElementsWith i vbo mode num = do 
+    bindVBO vbo vertDescriptor $ AttribLocation 0
+    bindBuffer ElementArrayBuffer $= Just i
+    drawElements mode (fromIntegral num) UnsignedByte nullPtr
+    bindBuffer ArrayBuffer $= Nothing
+    bindBuffer ElementArrayBuffer $= Nothing
+
+
 makeVBO :: [Float] -> IO BufferObject
 makeVBO verts = do
     let size = length verts * sizeOf (undefined :: Float)
-
     vbo <- genObjectName
-
-    -- Bind and buffer our vertex data.
     bindVBO vbo vertDescriptor $ AttribLocation 0
     withArray verts $ \ptr ->
         bufferData ArrayBuffer $= (fromIntegral size, ptr, StaticDraw)
-
-    printError
     return vbo
+
+
+makeElementVBO :: [GLubyte] -> IO BufferObject
+makeElementVBO indices = do
+    let size = (length indices) * sizeOf (undefined :: GLubyte)
+    i <- genObjectName
+    bindBuffer ElementArrayBuffer $= Just i
+    withArray indices $ \ptr ->
+        bufferData ElementArrayBuffer $= (fromIntegral size, ptr, StaticDraw)
+    bindBuffer ElementArrayBuffer $= Nothing
+    return i
 
 
 makeRenderTri :: Rendering
@@ -147,10 +168,7 @@ makeRenderQuad = do
 
     vbo <- makeVBO verts
 
-    return $ do bindVBO vbo vertDescriptor $ AttribLocation 0
-                drawArrays TriangleFan 0 4
-                bindBuffer ArrayBuffer $= Nothing
-
+    return $ drawArraysWith vbo TriangleFan 4
 
 makeRenderI :: Rendering
 makeRenderI = do
@@ -160,10 +178,7 @@ makeRenderI = do
                 , 0.0, 1.0
                 ]
     vbo <- makeVBO verts
-    return $ do bindVBO vbo vertDescriptor $ AttribLocation 0
-                drawArrays TriangleFan 0 4
-                bindBuffer ArrayBuffer $= Nothing
-
+    return $ drawArraysWith vbo TriangleFan 4
 
 makeRenderJ :: Rendering
 makeRenderJ = do
@@ -175,10 +190,7 @@ makeRenderJ = do
                 , 3.0, 2.0
                 ]
     vbo <- makeVBO verts
-    return $ do bindVBO vbo vertDescriptor $ AttribLocation 0
-                drawArrays TriangleFan 0 6
-                bindBuffer ArrayBuffer $= Nothing
-
+    return $ drawArraysWith vbo TriangleFan 6
 
 makeRenderL :: Rendering
 makeRenderL = do
@@ -232,20 +244,10 @@ makeRenderS = do
                   , 4, 5, 8
                   , 5, 8, 9
                   ] :: [GLubyte]
-        size    = (length indices) * sizeOf (undefined :: GLubyte)
     vbo <- makeVBO verts
-    i   <- genObjectName
-    bindBuffer ElementArrayBuffer $= Just i
-    withArray indices $ \ptr ->
-        bufferData ElementArrayBuffer $= (fromIntegral size, ptr, StaticDraw)
-    bindBuffer ElementArrayBuffer $= Nothing
-
-    return $ do bindVBO vbo vertDescriptor $ AttribLocation 0
-                bindBuffer ElementArrayBuffer $= Just i
-                drawElements Triangles 24 UnsignedByte nullPtr
-                bindBuffer ArrayBuffer $= Nothing
-                bindBuffer ElementArrayBuffer $= Nothing
-
+    i   <- makeElementVBO indices    
+    return $ drawElementsWith i vbo Triangles 24
+    
 
 makeRenderT :: Rendering
 makeRenderT = do
@@ -267,7 +269,7 @@ makeRenderT = do
 
 makeRenderZ :: Rendering
 makeRenderZ = do
-    let verts   = [ 0.0, 0.0 
+    let verts   = [ 0.0, 0.0
                   , 1.0, 0.0
                   , 2.0, 0.0
 
@@ -289,21 +291,9 @@ makeRenderZ = do
                   , 5, 6, 8
                   , 6, 8, 9
                   ] :: [GLubyte]
-        size    = (length indices) * sizeOf (undefined :: GLubyte)
     vbo <- makeVBO verts
-    i   <- genObjectName
-    bindBuffer ElementArrayBuffer $= Just i
-    withArray indices $ \ptr ->
-        bufferData ElementArrayBuffer $= (fromIntegral size, ptr, StaticDraw)
-    bindBuffer ElementArrayBuffer $= Nothing
-
-    return $ do bindVBO vbo vertDescriptor $ AttribLocation 0
-                bindBuffer ElementArrayBuffer $= Just i
-                drawElements Triangles 24 UnsignedByte nullPtr
-                bindBuffer ArrayBuffer $= Nothing
-                bindBuffer ElementArrayBuffer $= Nothing
-
-
+    i   <- makeElementVBO indices 
+    return $ drawElementsWith i vbo Triangles 24
 
 
 initRenderer :: IO Renderer
