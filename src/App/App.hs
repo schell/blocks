@@ -1,16 +1,21 @@
 -- | Mostly GLFW stuff.
 -- See http://www.glfw.org/docs/3.0/moving.html#moving_window_handle
 --
-module App.App where
+module App.App ( App(..)
+               , runApp
+               ) where
+
 
 import App.Clock
 import App.Input
 import App.TypeClasses
 import Control.Monad.State
+import Control.Concurrent
 import Data.Maybe
 import System.Exit                   ( exitSuccess, exitFailure )
 import Graphics.Rendering.OpenGL    hiding ( Matrix )
 import Graphics.UI.GLFW             hiding ( getTime )
+
 
 data App a = App { _userData   :: a
                  , _userInput  :: Input
@@ -18,8 +23,16 @@ data App a = App { _userData   :: a
                  , _window     :: Maybe Window
                  }
 
-initializeApp :: a -> IO (App a)
-initializeApp a = do
+
+type AppVar a = MVar (App a)
+
+
+runApp :: UserData a => a -> IO ()
+runApp userData = initializeApp userData >>= startWithMVar
+
+
+initializeApp :: UserData a => a -> IO (AppVar a)
+initializeApp userData = do
     mWin <- initGLFW
     case mWin of
         Nothing  -> do putStrLn "Could not create a window."
@@ -27,6 +40,7 @@ initializeApp a = do
 
         Just win -> do makeContextCurrent mWin
                        time <- getTime
+                       mvar <- newEmptyMVar
 
                        -- When True this gives us a moment
                        -- to attach an OGL profiler.
@@ -37,38 +51,60 @@ initializeApp a = do
 
 
                        -- Register our resize window function.
-                       setWindowSizeCallback win $ Just (\w _ _ -> do
-                           clear [ColorBuffer, DepthBuffer]
-                           swapBuffers w)
+                       setWindowSizeCallback win $ Just (\win' w h -> do
+                           app <- readMVar mvar
+                           putStrLn $ "Wincallback read mvar." ++ show (w,h)
+                           let input     = _userInput app 
+                               inState   = _inputState input
+                               events    = _inputEvents input
+                               input'    = input { _inputEvents = WindowSizeChangedTo (w,h):events
+                                                 , _inputState = inState { _windowSize = (w,h) }
+                                                 }
+                               userData' = onInput input' $ _userData app
+                           renderUserData win' userData')
 
                        let clock' = tickClock time emptyClock
-                       return App{ _userData   = a
-                                 , _clock      = clock'
-                                 , _userInput  = emptyInput
-                                 , _window     = Just win
-                                 }
+                           app    = App { _userData   = userData
+                                        , _clock      = clock'
+                                        , _userInput  = emptyInput
+                                        , _window     = Just win
+                                        }
+                       putMVar mvar app
+                       return mvar
 
-startApp :: UserData a => App a -> IO (App a)
-startApp app = do
+
+startWithMVar :: UserData a => AppVar a -> IO ()
+startWithMVar mvar = do
     putStrLn "Starting app."
+    app <- takeMVar mvar
     userData' <- onStart $ _userData app
-    let app' = app { _userData = userData' }
-    stepIO (shouldQuit . _userData) stepApp app'
+    putMVar mvar $ app { _userData = userData' }
+    iterateWithMVar mvar
 
--- | Takes a predicate, a stepping function and a
--- state and loops the stepping function over
--- the state while the predicate evaluates false.
-stepIO :: (a -> Bool) -- ^ The predicate.
-       -> (a -> IO a) -- ^ The stepping function.
-       -> a           -- ^ The game state.
-       -> IO a
-stepIO p g a
-    | p a       = do putStrLn "Predicate returned False, quitting."
-                     return a
-    | otherwise = g a >>= stepIO p g
 
-stepApp :: UserData a => App a -> IO (App a)
-stepApp app =
+-- Iterates stepApp over the state until shouldQuit evaluates false.
+iterateWithMVar :: UserData a
+           => AppVar a
+           -> IO ()
+iterateWithMVar mvar = iterate'
+    where iterate' = do app <- readMVar mvar
+                        putStrLn "Iterate read mvar."
+                        if shouldQuit $ _userData app
+                        then putStrLn  "Read quit condition, quitting."
+                        else do stepApp mvar
+                                iterate'
+
+
+renderUserData :: UserData a => Window -> a -> IO ()
+renderUserData win userData = do
+    clear [ColorBuffer, DepthBuffer]
+    onRender userData
+    swapBuffers win
+
+
+stepApp :: UserData a => AppVar a -> IO ()
+stepApp mvar = do
+    app <- readMVar mvar
     case _window app of
         Just win -> do
             t      <- getTime
@@ -79,19 +115,18 @@ stepApp app =
                 userData'' = onStep clock' userData'
                 app'       = app { _clock     = clock'
                                  , _userInput = input'
-                                 , _userData  = userData''
                                  }
 
-            clear [ColorBuffer, DepthBuffer]
-            userData''' <- onRender userData''
-            swapBuffers win
+            swapMVar mvar $ app' { _userData = userData'' }
 
-            when (shouldQuit userData''') $ onQuit userData'''
-            return $ app' { _userData = userData''' }
+            renderUserData win userData''
+
+            when (shouldQuit userData'') $ onQuit userData''
+            return ()
+
         Nothing -> do putStrLn "Window is nothing, quitting."
                       onQuit $ _userData app
                       void shutdown
-                      return app
 
 initGLFW :: IO (Maybe Window)
 initGLFW = do
@@ -115,11 +150,13 @@ initGLFW = do
 
     return mWin
 
+
 setWindowHints :: IO ()
 setWindowHints = do
     defaultWindowHints
     windowHint $ WindowHint'DepthBits 1
     windowHint $ WindowHint'OpenGLProfile OpenGLProfile'Any
+
 
 shutdown :: IO Bool
 shutdown = do

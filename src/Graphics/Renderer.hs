@@ -12,23 +12,43 @@ import           Foreign.Marshal.Array  ( withArray )
 import           Foreign.Ptr            ( nullPtr )
 import qualified Data.ByteString as B
 
-data Renderer = Renderer { _program  :: Program
-                         , _rndrTri  :: IO ()
-                         , _rndrQuad :: IO ()
-                         , _rndrI    :: IO ()
-                         , _rndrJ    :: IO ()
-                         , _rndrL    :: IO ()
-                         , _rndrO    :: IO ()
-                         , _rndrS    :: IO ()
-                         , _rndrT    :: IO ()
-                         , _rndrZ    :: IO ()
-                         , _updateModelview  :: [GLfloat] -> IO ()
-                         , _updateProjection :: [GLfloat] -> IO ()
+data Renderer = Renderer { _screenSize  :: (GLfloat, GLfloat)
+                         , _program     :: Program
+                         , _rndrTri     :: IO ()
+                         , _rndrQuad    :: IO ()
+                         , _rndrI       :: IO ()
+                         , _rndrJ       :: IO ()
+                         , _rndrL       :: IO ()
+                         , _rndrO       :: IO ()
+                         , _rndrS       :: IO ()
+                         , _rndrT       :: IO ()
+                         , _rndrZ       :: IO ()
                          , _updateColor :: Color4 GLfloat -> IO ()
+                         , _updateProjection :: [GLfloat] -> IO ()
+                         , _updateModelview  :: [GLfloat] -> IO ()
                          }
 
 instance Show Renderer where
     show _ = "Renderer"
+
+
+emptyRenderer :: Renderer
+emptyRenderer = Renderer { _screenSize  = undefined
+                         , _program     = undefined
+                         , _rndrTri     = undefined
+                         , _rndrQuad    = undefined
+                         , _rndrI       = undefined
+                         , _rndrJ       = undefined
+                         , _rndrL       = undefined
+                         , _rndrO       = undefined
+                         , _rndrS       = undefined
+                         , _rndrT       = undefined
+                         , _rndrZ       = undefined
+                         , _updateColor = undefined
+                         , _updateProjection = undefined
+                         , _updateModelview  = undefined
+                         }
+
 
 type Rendering = IO (IO ())
 
@@ -112,8 +132,9 @@ drawArraysWith vbo mode num = do
     drawArrays mode 0 $ fromIntegral num
     bindBuffer ArrayBuffer $= Nothing
 
+
 drawElementsWith :: BufferObject -> BufferObject -> PrimitiveMode -> Int -> IO ()
-drawElementsWith i vbo mode num = do 
+drawElementsWith i vbo mode num = do
     bindVBO vbo vertDescriptor $ AttribLocation 0
     bindBuffer ElementArrayBuffer $= Just i
     drawElements mode (fromIntegral num) UnsignedByte nullPtr
@@ -133,7 +154,7 @@ makeVBO verts = do
 
 makeElementVBO :: [GLubyte] -> IO BufferObject
 makeElementVBO indices = do
-    let size = (length indices) * sizeOf (undefined :: GLubyte)
+    let size = length indices * sizeOf (undefined :: GLubyte)
     i <- genObjectName
     bindBuffer ElementArrayBuffer $= Just i
     withArray indices $ \ptr ->
@@ -170,6 +191,7 @@ makeRenderQuad = do
 
     return $ drawArraysWith vbo TriangleFan 4
 
+
 makeRenderI :: Rendering
 makeRenderI = do
     let verts = [ 0.0, 0.0
@@ -179,6 +201,7 @@ makeRenderI = do
                 ]
     vbo <- makeVBO verts
     return $ drawArraysWith vbo TriangleFan 4
+
 
 makeRenderJ :: Rendering
 makeRenderJ = do
@@ -191,6 +214,7 @@ makeRenderJ = do
                 ]
     vbo <- makeVBO verts
     return $ drawArraysWith vbo TriangleFan 6
+
 
 makeRenderL :: Rendering
 makeRenderL = do
@@ -245,9 +269,9 @@ makeRenderS = do
                   , 5, 8, 9
                   ] :: [GLubyte]
     vbo <- makeVBO verts
-    i   <- makeElementVBO indices    
+    i   <- makeElementVBO indices
     return $ drawElementsWith i vbo Triangles 24
-    
+
 
 makeRenderT :: Rendering
 makeRenderT = do
@@ -292,7 +316,7 @@ makeRenderZ = do
                   , 6, 8, 9
                   ] :: [GLubyte]
     vbo <- makeVBO verts
-    i   <- makeElementVBO indices 
+    i   <- makeElementVBO indices
     return $ drawElementsWith i vbo Triangles 24
 
 
@@ -341,7 +365,8 @@ initRenderer = do
     cLoc <- get $ uniformLocation p "color"
     let updateColor c = uniform cLoc $= c
 
-    return Renderer { _program  = p
+    return Renderer { _screenSize = (0,0)
+                    , _program  = p
                     , _rndrTri  = rndrTri
                     , _rndrQuad = rndrQuad
                     , _rndrI    = rndrI

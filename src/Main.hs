@@ -7,5 +7,5 @@ import           Game.Game
 
 
 main :: IO ()
-main = void $ initializeApp newGame >>= startApp
+main = runApp newGame
 
