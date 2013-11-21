@@ -11,12 +11,15 @@ import           Math.Matrix
 import           Data.Maybe
 import           Control.Monad
 import           Graphics.Rendering.OpenGL hiding ( renderer, Matrix, get )
+import           Debug.Trace
+import           Data.List
 
 
 -- | The root of our game data.
 data Game = Game { _quit :: Bool   -- ^ Whether or not the game should quit.
                  , _renderer :: Maybe Renderer -- ^ The renderer.
                  , _input :: Input -- ^ Game input state.
+                 , _timeAcc :: Double
                  , _fps   :: Double
                  , _tetris :: Tetris
                  } deriving (Show)
@@ -27,11 +30,14 @@ newGame :: Game
 newGame = Game { _quit = False
                , _renderer = Nothing
                , _input = emptyInput
+               , _timeAcc = 0
                , _fps = 0
                , _tetris = newTetris
                }
 
 
+frameRate :: Double
+frameRate = 1/30
 
 
 instance UserData Game where
@@ -47,11 +53,30 @@ instance UserData Game where
                           _            -> game'
 
     -- | Step the game forward.
-    onStep clk game = let game' = game { _fps = _avgFPS clk }
-                          dt    = _timeNow clk - _timePrev clk
-                      in return $ if _quit game'
-                                    then game'
-                                    else game' { _tetris = stepTetris (_tetris game') dt }
+    onStep clk game = let game'   = game { _fps = _avgFPS clk }
+                          tetris  = _tetris game'
+                          -- The   time since last render.
+                          dt      = _timeNow clk - _timePrev clk
+                          -- Add   the leftover time from last render.
+                          acc     = _timeAcc game' + dt
+                          -- Fin  d the number of frames we should move
+                          -- for  ward.
+                          steps   = floor (acc / frameRate) :: Int
+                          -- Fin  d the leftover for this render.
+                          left    = acc - fromIntegral steps * dt
+                          -- Get   a lazy list of step iterations.
+                          states  = iterate (`stepTetris` frameRate) tetris
+                          -- If   we should take at least one step, make a
+                          -- new   tetris.
+                          tetris' = if steps >= 1
+                                      then last $ take (steps + 1) states
+                                      else tetris
+                          game''  = if _quit game'
+                                      then game'
+                                      else game' { _tetris = tetris'
+                                                 , _timeAcc = left
+                                                 }
+                          in return game''
 
     -- | Render the game.
     onRender g = case _renderer g of
@@ -63,10 +88,6 @@ instance UserData Game where
     -- | When quitting, let the user know.
     onQuit game = do putStrLn $ "Average fps: " ++ show (_fps game)
                      putStrLn "Done!"
-
-
-boardSize :: (GLfloat, GLfloat)
-boardSize = (blockWidth*10, blockWidth*20)
 
 
 boardPos :: Renderer -> (GLfloat, GLfloat)
@@ -115,18 +136,19 @@ renderBoard r b = do
 
 
 renderGame :: Game -> IO ()
-renderGame game = do
+renderGame game =
     when (isJust $ _renderer game) $ do
         let (w,h)  = _windowSize $ _inputState $ _input game
             r      = (fromJust $ _renderer game) { _screenSize = (fromIntegral w, fromIntegral h) }
             pMat   = orthoMatrix 0 (fromIntegral w) 0 (fromIntegral h) 0 1 :: Matrix GLfloat
+            tetris = _tetris game
+            block  = _thisBlock tetris
+            board  = _board tetris
+            -- Add the current block to the board if it exists.
+            board' = maybe board (:board) block
 
         viewport $= (Position 0 0, Size (fromIntegral w) (fromIntegral h))
         _updateProjection r $ concat pMat
-        renderBoard r $ _board $ _tetris game
-        --forM_ params $ \(c, m, r) -> do
-        --    _updateColor renderer c
-        --    _updateModelview renderer $ concat m
-        --    r renderer
+        renderBoard r board'
 
 
