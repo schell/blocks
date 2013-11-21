@@ -53,8 +53,7 @@ initializeApp userData = do
                        -- Register our resize window function.
                        setWindowSizeCallback win $ Just (\win' w h -> do
                            app <- readMVar mvar
-                           putStrLn $ "Wincallback read mvar." ++ show (w,h)
-                           let input     = _userInput app 
+                           let input     = _userInput app
                                inState   = _inputState input
                                events    = _inputEvents input
                                input'    = input { _inputEvents = WindowSizeChangedTo (w,h):events
@@ -75,7 +74,6 @@ initializeApp userData = do
 
 startWithMVar :: UserData a => AppVar a -> IO ()
 startWithMVar mvar = do
-    putStrLn "Starting app."
     app <- takeMVar mvar
     userData' <- onStart $ _userData app
     putMVar mvar $ app { _userData = userData' }
@@ -88,11 +86,9 @@ iterateWithMVar :: UserData a
            -> IO ()
 iterateWithMVar mvar = iterate'
     where iterate' = do app <- readMVar mvar
-                        putStrLn "Iterate read mvar."
-                        if shouldQuit $ _userData app
-                        then putStrLn  "Read quit condition, quitting."
-                        else do stepApp mvar
-                                iterate'
+                        unless (shouldQuit $ _userData app) $
+                            do stepApp mvar
+                               iterate'
 
 
 renderUserData :: UserData a => Window -> a -> IO ()
@@ -112,11 +108,11 @@ stepApp mvar = do
 
             let clock'     = tickClock t $ _clock app
                 userData'  = onInput input' $ _userData app
-                userData'' = onStep clock' userData'
                 app'       = app { _clock     = clock'
                                  , _userInput = input'
                                  }
 
+            userData'' <- onStep clock' userData'
             swapMVar mvar $ app' { _userData = userData'' }
 
             renderUserData win userData''

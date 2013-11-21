@@ -14,10 +14,10 @@ class UserData a where
     -- | The main step function.
     onStep :: Clock -- ^ The time elapsed since last tick.
            -> a     -- ^ The user's custom data structure.
-           -> a
+           -> IO a
     -- | Render the app.
     onRender :: a     -- ^ The user's custom data structure.
-             -> IO a
+             -> IO ()
     -- | Cleanup and prepare to exit. Save state, etc.
     onQuit :: a     -- ^ User's custom data structure.
            -> IO ()
