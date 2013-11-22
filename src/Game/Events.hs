@@ -1,12 +1,9 @@
 module Game.Events where
 
 import Game.Types
-import Game.Block
 import Game.Tetris
 import App.Input
 import Graphics.UI.GLFW
-import Graphics.Rendering.OpenGL
-import Debug.Trace
 
 
 handleEvents :: Tetris -> [InputEvent] -> Tetris

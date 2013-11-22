@@ -47,19 +47,19 @@ instance UserData Game where
     onStep clk game = let events  = _inputEvents $ _input game
                           tetris  = _tetris game
                           tetris' = handleEvents tetris events
-                          -- The   time since last render.
+                          -- The time since last render.
                           dt      = _timeNow clk - _timePrev clk
-                          -- Add   the leftover time from last render.
+                          -- Add the leftover time from last render.
                           acc     = _timeAcc game + dt
-                          -- Fin  d the number of frames we should move
-                          -- for  ward.
+                          -- Find the number of frames we should move
+                          -- forward.
                           steps   = floor (acc / frameRate) :: Int
-                          -- Fin  d the leftover for this render.
+                          -- Find the leftover for this render.
                           left    = acc - fromIntegral steps * dt
-                          -- Get   a lazy list of step iterations.
+                          -- Get a lazy list of step iterations.
                           states  = iterate (`stepTetris` frameRate) tetris'
-                          -- If   we should take at least one step, make a
-                          -- new   tetris.
+                          -- If we should take at least one step, make a
+                          -- new tetris.
                           tetris''= if steps >= 1
                                       then last $ take (steps + 1) states
                                       else tetris'
@@ -79,6 +79,7 @@ instance UserData Game where
 
     -- | Whether or not our game should quit.
     shouldQuit = _quit
+
     -- | When quitting, let the user know.
     onQuit game = do putStrLn $ "Average fps: " ++ show (_fps game)
                      putStrLn "Done!"

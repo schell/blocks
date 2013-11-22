@@ -14,15 +14,7 @@ import qualified Data.ByteString as B
 
 data Renderer = Renderer { _screenSize  :: (GLfloat, GLfloat)
                          , _program     :: Program
-                         , _rndrTri     :: IO ()
                          , _rndrQuad    :: IO ()
-                         , _rndrI       :: IO ()
-                         , _rndrJ       :: IO ()
-                         , _rndrL       :: IO ()
-                         , _rndrO       :: IO ()
-                         , _rndrS       :: IO ()
-                         , _rndrT       :: IO ()
-                         , _rndrZ       :: IO ()
                          , _updateColor :: Color4 GLfloat -> IO ()
                          , _updateProjection :: [GLfloat] -> IO ()
                          , _updateModelview  :: [GLfloat] -> IO ()
@@ -35,15 +27,7 @@ instance Show Renderer where
 emptyRenderer :: Renderer
 emptyRenderer = Renderer { _screenSize  = undefined
                          , _program     = undefined
-                         , _rndrTri     = undefined
                          , _rndrQuad    = undefined
-                         , _rndrI       = undefined
-                         , _rndrJ       = undefined
-                         , _rndrL       = undefined
-                         , _rndrO       = undefined
-                         , _rndrS       = undefined
-                         , _rndrT       = undefined
-                         , _rndrZ       = undefined
                          , _updateColor = undefined
                          , _updateProjection = undefined
                          , _updateModelview  = undefined
@@ -163,21 +147,6 @@ makeElementVBO indices = do
     return i
 
 
-makeRenderTri :: Rendering
-makeRenderTri = do
-    -- Create some geometry and store it in a VBO.
-    let verts = [ 0.0, 1.0
-                , 1.0, 1.0
-                , 0.5, 0.0
-                ] :: [Float]
-
-    vbo <- makeVBO verts
-
-    return $ do bindVBO vbo vertDescriptor $ AttribLocation 0
-                drawArrays Triangles 0 3
-                bindBuffer ArrayBuffer $= Nothing
-
-
 makeRenderQuad :: Rendering
 makeRenderQuad = do
     -- Create some geometry and store it in a VBO.
@@ -190,134 +159,6 @@ makeRenderQuad = do
     vbo <- makeVBO verts
 
     return $ drawArraysWith vbo TriangleFan 4
-
-
-makeRenderI :: Rendering
-makeRenderI = do
-    let verts = [ 0.0, 0.0
-                , 4.0, 0.0
-                , 4.0, 1.0
-                , 0.0, 1.0
-                ]
-    vbo <- makeVBO verts
-    return $ drawArraysWith vbo TriangleFan 4
-
-
-makeRenderJ :: Rendering
-makeRenderJ = do
-    let verts = [ 3.0, 0.0
-                , 0.0, 0.0
-                , 0.0, 1.0
-                , 2.0, 1.0
-                , 2.0, 2.0
-                , 3.0, 2.0
-                ]
-    vbo <- makeVBO verts
-    return $ drawArraysWith vbo TriangleFan 6
-
-
-makeRenderL :: Rendering
-makeRenderL = do
-    let verts = [ 0.0, 0.0
-                , 3.0, 0.0
-                , 3.0, 1.0
-                , 1.0, 1.0
-                , 1.0, 2.0
-                , 0.0, 2.0
-                ]
-    vbo <- makeVBO verts
-    return $ do bindVBO vbo vertDescriptor $ AttribLocation 0
-                drawArrays TriangleFan 0 6
-                bindBuffer ArrayBuffer $= Nothing
-
-
-makeRenderO :: Rendering
-makeRenderO = do
-    let verts = [ 0.0, 0.0
-                , 2.0, 0.0
-                , 2.0, 2.0
-                , 0.0, 2.0
-                ]
-    vbo <- makeVBO verts
-    return $ do bindVBO vbo vertDescriptor $ AttribLocation 0
-                drawArrays TriangleFan 0 4
-                bindBuffer ArrayBuffer $= Nothing
-
-
-makeRenderS :: Rendering
-makeRenderS = do
-    let verts   = [ 1.0, 0.0
-                  , 2.0, 0.0
-                  , 3.0, 0.0
-
-                  , 0.0, 1.0
-                  , 1.0, 1.0
-                  , 2.0, 1.0
-                  , 3.0, 1.0
-
-                  , 0.0, 2.0
-                  , 1.0, 2.0
-                  , 2.0, 2.0
-                  ]
-        indices = [ 0, 1, 4
-                  , 1, 4, 5
-                  , 1, 2, 5
-                  , 2, 5, 6
-                  , 3, 4, 7
-                  , 4, 7, 8
-                  , 4, 5, 8
-                  , 5, 8, 9
-                  ] :: [GLubyte]
-    vbo <- makeVBO verts
-    i   <- makeElementVBO indices
-    return $ drawElementsWith i vbo Triangles 24
-
-
-makeRenderT :: Rendering
-makeRenderT = do
-    let verts = [ 1.5, 0.0
-                , 3.0, 0.0
-                , 3.0, 1.0
-                , 2.0, 1.0
-                , 2.0, 2.0
-                , 1.0, 2.0
-                , 1.0, 1.0
-                , 0.0, 1.0
-                , 0.0, 0.0
-                ]
-    vbo <- makeVBO verts
-    return $ do bindVBO vbo vertDescriptor $ AttribLocation 0
-                drawArrays TriangleFan 0 9
-                bindBuffer ArrayBuffer $= Nothing
-
-
-makeRenderZ :: Rendering
-makeRenderZ = do
-    let verts   = [ 0.0, 0.0
-                  , 1.0, 0.0
-                  , 2.0, 0.0
-
-                  , 0.0, 1.0
-                  , 1.0, 1.0
-                  , 2.0, 1.0
-                  , 3.0, 1.0
-
-                  , 1.0, 2.0
-                  , 2.0, 2.0
-                  , 3.0, 2.0
-                  ]
-        indices = [ 0, 1, 3
-                  , 1, 3, 4
-                  , 1, 2, 4
-                  , 2, 4, 5
-                  , 4, 5, 7
-                  , 5, 7, 8
-                  , 5, 6, 8
-                  , 6, 8, 9
-                  ] :: [GLubyte]
-    vbo <- makeVBO verts
-    i   <- makeElementVBO indices
-    return $ drawElementsWith i vbo Triangles 24
 
 
 initRenderer :: IO Renderer
@@ -346,14 +187,6 @@ initRenderer = do
     printError
 
     rndrQuad <- makeRenderQuad
-    rndrTri  <- makeRenderTri
-    rndrI    <- makeRenderI
-    rndrJ    <- makeRenderJ
-    rndrL    <- makeRenderL
-    rndrO    <- makeRenderO
-    rndrS    <- makeRenderS
-    rndrT    <- makeRenderT
-    rndrZ    <- makeRenderZ
 
     UniformLocation mv <- get $ uniformLocation p "modelview"
     UniformLocation pj <- get $ uniformLocation p "projection"
@@ -367,15 +200,7 @@ initRenderer = do
 
     return Renderer { _screenSize = (0,0)
                     , _program  = p
-                    , _rndrTri  = rndrTri
                     , _rndrQuad = rndrQuad
-                    , _rndrI    = rndrI
-                    , _rndrJ    = rndrJ
-                    , _rndrL    = rndrL
-                    , _rndrO    = rndrO
-                    , _rndrS    = rndrS
-                    , _rndrT    = rndrT
-                    , _rndrZ    = rndrZ
                     , _updateModelview  = updateMV
                     , _updateProjection = updatePJ
                     , _updateColor = updateColor
