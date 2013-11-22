@@ -26,5 +26,6 @@ executable blocks
                        mtl          >= 2.1.2,
                        clock        >= 0.4.0.1,
                        bytestring   >= 0.10.0.2,
-                       time         >= 1.4.1
+                       time         >= 1.4.1,
+                       random       >= 1.0.1.1
 

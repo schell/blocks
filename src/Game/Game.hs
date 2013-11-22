@@ -1,7 +1,9 @@
 module Game.Game where
 
 import           Game.Block
-import           Game.Step
+import           Game.Tetris
+import           Game.Types
+import           Game.Events
 import           Graphics.Renderer
 import           App.Input
 import           App.TypeClasses
@@ -9,20 +11,9 @@ import           App.Clock
 import           Graphics.UI.GLFW
 import           Math.Matrix
 import           Data.Maybe
+import           System.Random
 import           Control.Monad
 import           Graphics.Rendering.OpenGL hiding ( renderer, Matrix, get )
-import           Debug.Trace
-import           Data.List
-
-
--- | The root of our game data.
-data Game = Game { _quit :: Bool   -- ^ Whether or not the game should quit.
-                 , _renderer :: Maybe Renderer -- ^ The renderer.
-                 , _input :: Input -- ^ Game input state.
-                 , _timeAcc :: Double
-                 , _fps   :: Double
-                 , _tetris :: Tetris
-                 } deriving (Show)
 
 
 -- | Creates a default game.
@@ -53,30 +44,33 @@ instance UserData Game where
                           _            -> game'
 
     -- | Step the game forward.
-    onStep clk game = let game'   = game { _fps = _avgFPS clk }
-                          tetris  = _tetris game'
+    onStep clk game = let events  = _inputEvents $ _input game
+                          tetris  = _tetris game
+                          tetris' = handleEvents tetris events
                           -- The   time since last render.
                           dt      = _timeNow clk - _timePrev clk
                           -- Add   the leftover time from last render.
-                          acc     = _timeAcc game' + dt
+                          acc     = _timeAcc game + dt
                           -- Fin  d the number of frames we should move
                           -- for  ward.
                           steps   = floor (acc / frameRate) :: Int
                           -- Fin  d the leftover for this render.
                           left    = acc - fromIntegral steps * dt
                           -- Get   a lazy list of step iterations.
-                          states  = iterate (`stepTetris` frameRate) tetris
+                          states  = iterate (`stepTetris` frameRate) tetris'
                           -- If   we should take at least one step, make a
                           -- new   tetris.
-                          tetris' = if steps >= 1
+                          tetris''= if steps >= 1
                                       then last $ take (steps + 1) states
-                                      else tetris
-                          game''  = if _quit game'
-                                      then game'
-                                      else game' { _tetris = tetris'
-                                                 , _timeAcc = left
-                                                 }
-                          in return game''
+                                      else tetris'
+                          game'   = game { _tetris = tetris''
+                                         , _timeAcc = left
+                                         }
+                          in if isNothing $ _thisBlock $ _tetris game'
+                               then do r <- randomRIO (0, length blockTypes - 1)
+                                       let b = newBlockWithType $ blockTypes !! r
+                                       return game' {_tetris = tetris'' {_thisBlock = Just b}}
+                               else return game'
 
     -- | Render the game.
     onRender g = case _renderer g of
@@ -107,8 +101,10 @@ renderBlock r b = do
         mat     = identityN 4 :: Matrix GLfloat
         scale'  = scaleMatrix3d w w 1
         tns a a1 = translationMatrix3d a a1 0 :: Matrix GLfloat
-        ys      = map (*w) [0,1] :: [GLfloat]
-        xs      = map (*w) [0..3] :: [GLfloat]
+        yl      = fromIntegral $ length rows
+        xl      = fromIntegral $ length $ head rows
+        ys      = map (*w) [0..yl] :: [GLfloat]
+        xs      = map (*w) [0..xl] :: [GLfloat]
         zipDo a a1 a2 = zipWithM_ a2 a a1
 
     zipDo ys rows $ \y' row -> do
