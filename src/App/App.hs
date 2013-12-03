@@ -141,16 +141,13 @@ initGLFW = do
            -- Set the window title.
            setWindowTitle w "Arborgeddon"
 
-           blend     $= Enabled
-           blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
-
     return mWin
 
 
 setWindowHints :: IO ()
 setWindowHints = do
     defaultWindowHints
-    windowHint $ WindowHint'DepthBits 1
+    --windowHint $ WindowHint'DepthBits 1
     windowHint $ WindowHint'OpenGLProfile OpenGLProfile'Any
 
 

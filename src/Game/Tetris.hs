@@ -2,6 +2,7 @@ module Game.Tetris where
 
 import Game.Types
 import Game.Block
+import Game.Board
 import Graphics.Rendering.OpenGL
 import Data.List
 import Data.Maybe
@@ -12,6 +13,7 @@ newTetris :: Tetris
 newTetris = Tetris { _board = []
                    , _thisBlock = Nothing
                    , _nextBlocks = []
+                   , _gameOver = False
                    }
 
 
@@ -26,15 +28,28 @@ stepTetris tetris dt =
            Nothing -> tetris
            Just b  -> let (x,y)      = _blockPos b
                           board      = _board tetris
-                          (hit, pos) = blockHasHit board b
+                          board'      = removeLines board (findLines board)
+                          (hit, pos) = blockHasHit board' b
                           pos'       = if hit then pos else (x, y + fallAmount dt)
+                          over       = (hit && snd pos <= 0)
                           b'         = b { _blockPos = pos' }
                           tetris'    = if hit
                                          then tetris { _thisBlock = Nothing
-                                                     , _board = b':board
+                                                     , _board = b':board'
+                                                     , _gameOver = over
                                                      }
-                                         else tetris { _thisBlock = Just b' }
-                      in tetris'
+                                         else tetris { _thisBlock = Just b'
+                                                     , _board = board'
+                                                     }
+                      in if _gameOver tetris
+                           then tetris
+                           else tetris'
+
+-- | Takes a board and removes full blocks of lines.
+--stepBoard :: Board -> Board
+--stepBoard = uncurry removeLines . findLines
+
+
 
 
 blockHasHit :: Board -> Block -> (Bool, Pos)
@@ -78,7 +93,7 @@ collideBlocks b1@(Block _ (x,y) _) b2 =
                                         map (hitTestAABBs b1p) b2ps) b1ps
                             colls = filter fst tests
                             in case colls of
-                               (True,(dx,dy)):_ -> trace (show (x-dx,y-dy)) (True, (x-dx,y-dy))
+                               (True,(dx,dy)):_ -> (True, (x-dx,y-dy))
                                _                -> (False, (x,y))
 
 
@@ -148,7 +163,7 @@ moveBlockRight t = moveBlockHorizontalBy t blockWidth
 
 
 moveBlockHorizontalBy :: Tetris -> GLfloat -> Tetris
-moveBlockHorizontalBy t@(Tetris _ mB _) xx = t { _thisBlock = mB' }
+moveBlockHorizontalBy t@(Tetris _ mB _ _) xx = t { _thisBlock = mB' }
     where mB' = case mB of
                     Nothing -> Nothing
                     Just b  -> let (x,y) = _blockPos b
@@ -159,7 +174,7 @@ moveBlockHorizontalBy t@(Tetris _ mB _) xx = t { _thisBlock = mB' }
 
 
 rotateBlock :: Tetris -> Tetris
-rotateBlock t@(Tetris _ mB _) = t { _thisBlock = mB' }
+rotateBlock t@(Tetris _ mB _ _) = t { _thisBlock = mB' }
     where mB' = case mB of
                     Nothing -> Nothing
                     Just b  -> let p  = _blockPieces b

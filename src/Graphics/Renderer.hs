@@ -177,6 +177,10 @@ initRenderer = do
                                 , "Extensions:\n  [ " ++ intercalate "\n  , " exts ++ "\n  ]"
                                 ]
 
+    blend $= Enabled
+    blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
+    depthFunc $= Nothing 
+
     v <- makeShader VertexShader vertSrc
     f <- makeShader FragmentShader fragSrc
 

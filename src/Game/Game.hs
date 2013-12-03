@@ -13,7 +13,7 @@ import           Math.Matrix
 import           Data.Maybe
 import           System.Random
 import           Control.Monad
-import           Graphics.Rendering.OpenGL hiding ( renderer, Matrix, get )
+import           Graphics.Rendering.OpenGL hiding ( renderer, Matrix, get, scale )
 
 
 -- | Creates a default game.
@@ -147,5 +147,13 @@ renderGame game =
         viewport $= (Position 0 0, Size (fromIntegral w) (fromIntegral h))
         _updateProjection r $ concat pMat
         renderBoard r board'
-
+        when (_gameOver tetris) $ do
+            let (w',h') = boardSize
+                (x,y)   = boardPos r
+                mat     = identityN 4 :: Matrix GLfloat
+                trans   = translationMatrix3d x y 0
+                scale   = scaleMatrix3d w' h' 1
+            _updateModelview r $ concat $ mat `multiply` trans `multiply` scale
+            _updateColor r $ Color4 0.0 0.0 0.0 0.3
+            _rndrQuad r
 

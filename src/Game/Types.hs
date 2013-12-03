@@ -28,9 +28,10 @@ data Block = Block { _blockType   :: BlockType
 type Board = [Block]
 
 
-data Tetris = Tetris { _board :: Board
+data Tetris = Tetris { _board     :: Board
                      , _thisBlock :: Maybe Block
                      , _nextBlocks:: [Block]
+                     , _gameOver  :: Bool
                      } deriving (Show, Eq, Ord)
 
 
