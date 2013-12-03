@@ -13,13 +13,13 @@ newTetris :: Tetris
 newTetris = Tetris { _board = []
                    , _thisBlock = Nothing
                    , _nextBlocks = []
+                   , _timer = 0
                    , _gameOver = False
                    }
 
 
-fallAmount :: Double -> GLfloat
-fallAmount = (30*) . realToFrac -- px/sec
-
+fallRate :: Double
+fallRate = 2.0
 
 stepTetris :: Tetris -> Double -> Tetris
 stepTetris tetris dt =
@@ -28,18 +28,25 @@ stepTetris tetris dt =
            Nothing -> tetris
            Just b  -> let (x,y)      = _blockPos b
                           board      = _board tetris
-                          board'      = removeLines board (findLines board)
+                          timer      = _timer tetris
+                          dt'        = timer + dt
+                          spaces     = fromIntegral $ floor (dt' / fallRate)
+                          yinc       = 20 * spaces
+                          dt''       = dt' - spaces * fallRate
+                          board'     = removeLines board (findLines board)
                           (hit, pos) = blockHasHit board' b
-                          pos'       = if hit then pos else (x, y + fallAmount dt)
+                          pos'       = if hit then pos else (x, y + realToFrac yinc)
                           over       = (hit && snd pos <= 0)
                           b'         = b { _blockPos = pos' }
                           tetris'    = if hit
                                          then tetris { _thisBlock = Nothing
                                                      , _board = b':board'
                                                      , _gameOver = over
+                                                     , _timer = dt''
                                                      }
                                          else tetris { _thisBlock = Just b'
                                                      , _board = board'
+                                                     , _timer = dt''
                                                      }
                       in if _gameOver tetris
                            then tetris
@@ -163,7 +170,7 @@ moveBlockRight t = moveBlockHorizontalBy t blockWidth
 
 
 moveBlockHorizontalBy :: Tetris -> GLfloat -> Tetris
-moveBlockHorizontalBy t@(Tetris _ mB _ _) xx = t { _thisBlock = mB' }
+moveBlockHorizontalBy t@(Tetris _ mB _ _ _) xx = t { _thisBlock = mB' }
     where mB' = case mB of
                     Nothing -> Nothing
                     Just b  -> let (x,y) = _blockPos b
@@ -174,7 +181,7 @@ moveBlockHorizontalBy t@(Tetris _ mB _ _) xx = t { _thisBlock = mB' }
 
 
 rotateBlock :: Tetris -> Tetris
-rotateBlock t@(Tetris _ mB _ _) = t { _thisBlock = mB' }
+rotateBlock t@(Tetris _ mB _ _ _) = t { _thisBlock = mB' }
     where mB' = case mB of
                     Nothing -> Nothing
                     Just b  -> let p  = _blockPieces b

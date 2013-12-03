@@ -31,6 +31,7 @@ type Board = [Block]
 data Tetris = Tetris { _board     :: Board
                      , _thisBlock :: Maybe Block
                      , _nextBlocks:: [Block]
+                     , _timer     :: Double
                      , _gameOver  :: Bool
                      } deriving (Show, Eq, Ord)
 
