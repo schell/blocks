@@ -39,7 +39,6 @@ newBlockWithType TO = blockO
 newBlockWithType TS = blockS
 newBlockWithType TT = blockT
 newBlockWithType TZ = blockZ
-newBlockWithType _  = blockI
 
 
 blockI :: Block
@@ -81,4 +80,4 @@ blockZ :: Block
 blockZ = Block TZ (0,0) [[True, True, False]
                         ,[False, True, True]
                         ]
-                        
+

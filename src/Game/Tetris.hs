@@ -6,57 +6,63 @@ import Game.Board
 import Graphics.Rendering.OpenGL
 import Data.List
 import Data.Maybe
+import Control.Monad
+import Control.Monad.State
+import Control.Lens
 import Debug.Trace
 
 
 newTetris :: Tetris
 newTetris = Tetris { _board = []
-                   , _thisBlock = Nothing
-                   , _nextBlocks = []
+                   , _block = Nothing
                    , _timer = 0
                    , _gameOver = False
                    }
 
 
 fallRate :: Double
-fallRate = 2.0
+fallRate = 1.0
+
+
+updateTetris :: Double -> State Tetris ()
+updateTetris dt = do
+    hasQuit <- use gameOver
+    when (not hasQuit) $ do
+        -- Increase our time accumulator by dt.
+        timer += dt
+        -- Get the number of ticks we're supposed to perform (1).
+        ticks <- uses timer $ floor . (/ fallRate)
+        -- Set the time to the leftover after we take our ticks.
+        timer -= fromIntegral ticks * fallRate
+        -- Iterate the tetris rulse over the board `tick` number of times.
+        replicateM_ ticks iterateTetrisRules
+
+
+iterateTetrisRules :: State Tetris ()
+iterateTetrisRules = do
+    mBlk <- use block
+    when (isJust mBlk) $ do
+        -- Get the block as it is moved down 20px.
+        blk <- uses block ((blockPos._2 +~ 20) . fromJust)
+        -- Check if that block has hit the board and where.
+        (hit, pos) <- uses board (`blockHasHit` blk)
+        when hit $ do
+            -- Set tetris' block to nil.
+            block .= Nothing
+            -- Stick the block at the right position on the board.
+            board %= ((blockPos .~ pos $ blk):)
+        when (not hit) $ do
+            -- Update the block.
+            block .= Just blk
+        -- Get the lines we've scored.
+        foundLns <- uses board findLines
+        board %= (`removeLines` foundLns)
+
 
 stepTetris :: Tetris -> Double -> Tetris
-stepTetris tetris dt =
-    let mB = _thisBlock tetris
-    in case mB of
-           Nothing -> tetris
-           Just b  -> let (x,y)      = _blockPos b
-                          board      = _board tetris
-                          timer      = _timer tetris
-                          dt'        = timer + dt
-                          spaces     = fromIntegral $ floor (dt' / fallRate)
-                          yinc       = 20 * spaces
-                          dt''       = dt' - spaces * fallRate
-                          board'     = removeLines board (findLines board)
-                          (hit, pos) = blockHasHit board' b
-                          pos'       = if hit then pos else (x, y + realToFrac yinc)
-                          over       = (hit && snd pos <= 0)
-                          b'         = b { _blockPos = pos' }
-                          tetris'    = if hit
-                                         then tetris { _thisBlock = Nothing
-                                                     , _board = b':board'
-                                                     , _gameOver = over
-                                                     , _timer = dt''
-                                                     }
-                                         else tetris { _thisBlock = Just b'
-                                                     , _board = board'
-                                                     , _timer = dt''
-                                                     }
-                      in if _gameOver tetris
-                           then tetris
-                           else tetris'
-
--- | Takes a board and removes full blocks of lines.
---stepBoard :: Board -> Board
---stepBoard = uncurry removeLines . findLines
-
-
+stepTetris tetris dt
+    | _gameOver tetris = tetris
+    | otherwise = execState (updateTetris dt) tetris
 
 
 blockHasHit :: Board -> Block -> (Bool, Pos)
@@ -170,7 +176,7 @@ moveBlockRight t = moveBlockHorizontalBy t blockWidth
 
 
 moveBlockHorizontalBy :: Tetris -> GLfloat -> Tetris
-moveBlockHorizontalBy t@(Tetris _ mB _ _ _) xx = t { _thisBlock = mB' }
+moveBlockHorizontalBy t@(Tetris _ mB _ _) xx = t { _block = mB' }
     where mB' = case mB of
                     Nothing -> Nothing
                     Just b  -> let (x,y) = _blockPos b
@@ -181,7 +187,7 @@ moveBlockHorizontalBy t@(Tetris _ mB _ _ _) xx = t { _thisBlock = mB' }
 
 
 rotateBlock :: Tetris -> Tetris
-rotateBlock t@(Tetris _ mB _ _ _) = t { _thisBlock = mB' }
+rotateBlock t@(Tetris _ mB _ _) = t { _block = mB' }
     where mB' = case mB of
                     Nothing -> Nothing
                     Just b  -> let p  = _blockPieces b

@@ -1,8 +1,14 @@
+{-# LANGUAGE TemplateHaskell #-}
 module Game.Types where
 
 import           App.Input
+import           App.Clock
 import           Graphics.Renderer
 import           Graphics.Rendering.OpenGL
+import           Control.Lens
+
+
+-- | Make lenses for app types.
 
 
 -- | The kind of tetris block.
@@ -22,18 +28,19 @@ data Block = Block { _blockType   :: BlockType
                    , _blockPos    :: Pos
                    , _blockPieces :: Pieces
                    } deriving (Eq, Ord, Show)
+makeLenses ''Block
 
 
 -- | An instance of a tetris board.
 type Board = [Block]
 
 
-data Tetris = Tetris { _board     :: Board
-                     , _thisBlock :: Maybe Block
-                     , _nextBlocks:: [Block]
-                     , _timer     :: Double
-                     , _gameOver  :: Bool
+data Tetris = Tetris { _board    :: Board
+                     , _block    :: Maybe Block
+                     , _timer    :: Double
+                     , _gameOver :: Bool
                      } deriving (Show, Eq, Ord)
+makeLenses ''Tetris
 
 
 -- | The root of our game data.
@@ -44,4 +51,5 @@ data Game = Game { _quit :: Bool   -- ^ Whether or not the game should quit.
                  , _fps   :: Double
                  , _tetris :: Tetris
                  } deriving (Show)
+makeLenses ''Game
 

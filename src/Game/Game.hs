@@ -4,15 +4,17 @@ import           Game.Block
 import           Game.Tetris
 import           Game.Types
 import           Game.Events
-import           Graphics.Renderer
+import           App.Types
 import           App.Input
 import           App.TypeClasses
-import           App.Clock
+import           Graphics.Renderer
 import           Graphics.UI.GLFW
 import           Math.Matrix
 import           Data.Maybe
 import           System.Random
 import           Control.Monad
+import           Control.Monad.State
+import           Control.Lens
 import           Graphics.Rendering.OpenGL hiding ( renderer, Matrix, get, scale )
 
 
@@ -31,51 +33,53 @@ frameRate :: Double
 frameRate = 1/30
 
 
+updateGame :: Clock -> State Game ()
+updateGame clk = do
+    fps .= clk^.avgFPS
+
+    evs <- use (input.inputEvents)
+    trs <- use tetris
+    acc <- use timeAcc
+    -- Update tetris' events.
+    tetris .= handleEvents trs evs
+    -- Time stepping.
+    let dt    = clk^.timeNow - clk^.timePrev
+        acc'  = acc + dt
+        steps = floor (acc' / frameRate) :: Int
+
+    timeAcc .= acc' - fromIntegral steps * dt
+    when (steps >= 1) $ do
+        trs <- use tetris
+        let states = iterate (`stepTetris` frameRate) trs
+        tetris .= (last $ take (steps + 1) states)
+
+
+updateGameWithNextBlock :: Game -> IO Game
+updateGameWithNextBlock g = do
+    r <- randomRIO (0, length blockTypes -1)
+    let b = newBlockWithType $ blockTypes !! r
+    return $ g & tetris.block .~ Just b
+
+
 instance UserData Game where
     -- | When we start up initialize all our rendering resources.
     onStart g = do rndr <- initRenderer
-                   return g { _renderer = Just rndr }
+                   return $ g & renderer .~ Just rndr
 
     -- | When we receive input, store it in our game to use later.type
-    onInput i game = let game' = game { _input = i }
-                         keys  = _keysPressed $ _inputState i
-                     in case keys of
-                          Key'Escape:_ -> game' { _quit = True }
-                          _            -> game'
+    onInput i = execState $ do input .= i
+                               quit  .= case i^.inputState.keysPressed of
+                                            Key'Escape:_ -> True
+                                            _            -> False
 
     -- | Step the game forward.
-    onStep clk game = let events  = _inputEvents $ _input game
-                          tetris  = _tetris game
-                          tetris' = handleEvents tetris events
-                          -- The time since last render.
-                          dt      = _timeNow clk - _timePrev clk
-                          -- Add the leftover time from last render.
-                          acc     = _timeAcc game + dt
-                          -- Find the number of frames we should move
-                          -- forward.
-                          steps   = floor (acc / frameRate) :: Int
-                          -- Find the leftover for this render.
-                          left    = acc - fromIntegral steps * dt
-                          -- Get a lazy list of step iterations.
-                          states  = iterate (`stepTetris` frameRate) tetris'
-                          -- If we should take at least one step, make a
-                          -- new tetris.
-                          tetris''= if steps >= 1
-                                      then last $ take (steps + 1) states
-                                      else tetris'
-                          game'   = game { _tetris = tetris''
-                                         , _timeAcc = left
-                                         }
-                          in if isNothing $ _thisBlock $ _tetris game'
-                               then do r <- randomRIO (0, length blockTypes - 1)
-                                       let b = newBlockWithType $ blockTypes !! r
-                                       return game' {_tetris = tetris'' {_thisBlock = Just b}}
-                               else return game'
+    onStep clk game = do let g = execState (updateGame clk) game
+                         if isNothing $ g^.tetris.block
+                           then updateGameWithNextBlock g
+                           else return g
 
     -- | Render the game.
-    onRender g = case _renderer g of
-                     Nothing -> return ()
-                     Just _  -> renderGame g
+    onRender g = when (isJust $ g^.renderer) $ renderGame g
 
     -- | Whether or not our game should quit.
     shouldQuit = _quit
@@ -139,7 +143,7 @@ renderGame game =
             r      = (fromJust $ _renderer game) { _screenSize = (fromIntegral w, fromIntegral h) }
             pMat   = orthoMatrix 0 (fromIntegral w) 0 (fromIntegral h) 0 1 :: Matrix GLfloat
             tetris = _tetris game
-            block  = _thisBlock tetris
+            block  = _block tetris
             board  = _board tetris
             -- Add the current block to the board if it exists.
             board' = maybe board (:board) block
