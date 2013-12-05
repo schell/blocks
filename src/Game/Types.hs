@@ -3,6 +3,7 @@ module Game.Types where
 
 import           App.Input
 import           App.Clock
+import           Graphics.Types
 import           Graphics.Renderer
 import           Graphics.Rendering.OpenGL
 import           Control.Lens
@@ -42,14 +43,17 @@ data Tetris = Tetris { _board    :: Board
                      } deriving (Show, Eq, Ord)
 makeLenses ''Tetris
 
+data Options = Options { _optAssetDir :: FilePath } deriving (Show)
+makeLenses ''Options
 
 -- | The root of our game data.
-data Game = Game { _quit :: Bool   -- ^ Whether or not the game should quit.
+data Game = Game { _quit     :: Bool -- ^ Whether or not the game should quit.
                  , _renderer :: Maybe Renderer -- ^ The renderer.
-                 , _input :: Input -- ^ Game input state.
-                 , _timeAcc :: Double
-                 , _fps   :: Double
-                 , _tetris :: Tetris
+                 , _input    :: Input -- ^ Game input state.
+                 , _timeAcc  :: Double
+                 , _fps      :: Double
+                 , _tetris   :: Tetris
+                 , _options  :: Options
                  } deriving (Show)
 makeLenses ''Game
 

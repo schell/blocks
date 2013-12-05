@@ -7,6 +7,7 @@ import           Game.Events
 import           App.Types
 import           App.Input
 import           App.TypeClasses
+import           Graphics.Types
 import           Graphics.Renderer
 import           Graphics.UI.GLFW
 import           Math.Matrix
@@ -18,6 +19,10 @@ import           Control.Lens
 import           Graphics.Rendering.OpenGL hiding ( renderer, Matrix, get, scale )
 
 
+defaultOptions :: Options
+defaultOptions = Options { _optAssetDir = "./assets" }
+
+
 -- | Creates a default game.
 newGame :: Game
 newGame = Game { _quit = False
@@ -26,6 +31,7 @@ newGame = Game { _quit = False
                , _timeAcc = 0
                , _fps = 0
                , _tetris = newTetris
+               , _options = defaultOptions
                }
 
 
@@ -63,7 +69,7 @@ updateGameWithNextBlock g = do
 
 instance UserData Game where
     -- | When we start up initialize all our rendering resources.
-    onStart g = do rndr <- initRenderer
+    onStart g = do rndr <- initRenderer $ g^.options.optAssetDir
                    return $ g & renderer .~ Just rndr
 
     -- | When we receive input, store it in our game to use later.type
@@ -99,7 +105,8 @@ boardPos r = (x,y)
 
 renderBlock :: Renderer -> Block -> IO ()
 renderBlock r b = do
-    let (bx,by) = boardPos r
+    let q       = _quadRndr r
+        (bx,by) = boardPos r
         (x,y)   = _blockPos b
         w       = blockWidth
         rows    = _blockPieces b
@@ -112,26 +119,32 @@ renderBlock r b = do
         xs      = map (*w) [0..xl] :: [GLfloat]
         zipDo a a1 a2 = zipWithM_ a2 a a1
 
+    currentProgram $= (Just $ r^.quadRndr.quadProgram.program)
+
     zipDo ys rows $ \y' row -> do
         let yy = by + y + y'
         zipDo xs row $ \x' draw -> when draw $ do
             let xx = bx+x+x'
-            _updateColor r $ colorForBlock b
-            _updateModelview r $ concat $ mat `multiply` tns xx yy `multiply` scale'
-            _rndrQuad r
+            q^.updateColor $ colorForBlock b
+            q^.quadProgram.updateModelview $ concat $ mat `multiply` tns xx yy `multiply` scale'
+            q^.rndrQuad
 
 
 renderBoard :: Renderer -> Board -> IO ()
 renderBoard r b = do
-    let mat     = identityN 4 :: Matrix GLfloat
+    let q       = _quadRndr r
+        mat     = identityN 4 :: Matrix GLfloat
         (w,h)   = boardSize
         scale'  = scaleMatrix3d w h 1
         (x,y)   = boardPos r
         trans   = translationMatrix3d x y 0
+
+    currentProgram $= (Just $ q^.quadProgram.program)
+
     -- Render the background.
-    _updateModelview r $ concat $ mat `multiply` trans `multiply` scale'
-    _updateColor r $ Color4 0.25 0.25 0.25 1.0
-    _rndrQuad r
+    q^.quadProgram.updateModelview $ concat $ mat `multiply` trans `multiply` scale'
+    q^.updateColor $ Color4 0.25 0.25 0.25 1.0
+    q^.rndrQuad
     -- Render the blocks.
     forM_ b $ renderBlock r
 
@@ -139,25 +152,38 @@ renderBoard r b = do
 renderGame :: Game -> IO ()
 renderGame game =
     when (isJust $ _renderer game) $ do
-        let (w,h)  = _windowSize $ _inputState $ _input game
+        let (w,h)  = game^.input.inputState.windowSize
             r      = (fromJust $ _renderer game) { _screenSize = (fromIntegral w, fromIntegral h) }
+            q      = _quadRndr r
             pMat   = orthoMatrix 0 (fromIntegral w) 0 (fromIntegral h) 0 1 :: Matrix GLfloat
+            mat    = identityN 4 :: Matrix GLfloat
+            scaleb = scaleMatrix3d (fromIntegral w) (fromIntegral h) 1 :: Matrix GLfloat
             tetris = _tetris game
             block  = _block tetris
             board  = _board tetris
             -- Add the current block to the board if it exists.
             board' = maybe board (:board) block
-
+        -- Update the viewport to match the current window size.
         viewport $= (Position 0 0, Size (fromIntegral w) (fromIntegral h))
-        _updateProjection r $ concat pMat
+        -- Example of drawing a
+        currentProgram $= (Just $ r^.texRndr.texProgram.program)
+        r^.texRndr.updateSampler $ Index1 0
+        r^.texRndr.texProgram.updateProjection $ concat pMat
+        r^.texRndr.texProgram.updateModelview $ concat $ mat `multiply` scaleb
+        r^.texRndr.drawTex
+
+        currentProgram $= (Just $ q^.quadProgram.program)
+
+        q^.quadProgram.updateProjection $ concat pMat
         renderBoard r board'
         when (_gameOver tetris) $ do
             let (w',h') = boardSize
                 (x,y)   = boardPos r
-                mat     = identityN 4 :: Matrix GLfloat
                 trans   = translationMatrix3d x y 0
                 scale   = scaleMatrix3d w' h' 1
-            _updateModelview r $ concat $ mat `multiply` trans `multiply` scale
-            _updateColor r $ Color4 0.0 0.0 0.0 0.3
-            _rndrQuad r
+            q^.quadProgram.updateModelview $ concat $ mat `multiply` trans `multiply` scale
+            q^.updateColor $ Color4 0.0 0.0 0.0 0.3
+            q^.rndrQuad
+
+
 

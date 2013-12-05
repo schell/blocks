@@ -51,6 +51,8 @@ iterateTetrisRules = do
             block .= Nothing
             -- Stick the block at the right position on the board.
             board %= ((blockPos .~ pos $ blk):)
+            -- Set the game over condition.
+            gameOver .= (pos^._2 <= 0)
         when (not hit) $ do
             -- Update the block.
             block .= Just blk
@@ -143,7 +145,6 @@ hitTestAABBs ab1 ab2 =
         proj  -> (True, proj)
 
 
-
 intersectAABBs :: AABB -> AABB -> (GLfloat, GLfloat)
 intersectAABBs b1@(x1, y1, w1, h1) b2@(x2, y2, w2, h2)
      | x1 >= x2 + w2 || x2 >= x1 + w1 = (0, 0)
@@ -173,6 +174,12 @@ moveBlockLeft t = moveBlockHorizontalBy t (-blockWidth)
 
 moveBlockRight :: Tetris -> Tetris
 moveBlockRight t = moveBlockHorizontalBy t blockWidth
+
+
+moveBlockDown :: Tetris -> Tetris
+moveBlockDown t
+    | t^.block == Nothing = t
+    | otherwise = moveBlockDown $ execState iterateTetrisRules t
 
 
 moveBlockHorizontalBy :: Tetris -> GLfloat -> Tetris
