@@ -9,17 +9,24 @@ name:                blocks
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
 version:             0.1.0.0
-synopsis:            A game about blocks.
--- description:
+synopsis:            One haskell tetris implementation.
+description:         Uses OpenGL for an implementation of tetris.
 license:             BSD3
 license-file:        LICENSE
 author:              Schell Scivally
 maintainer:          efsubenovex@gmail.com
--- copyright:
+bug-reports:         https://github.com/schell/blocks/issues
+homepage:            https://github.com/schell/blocks
+category:            Development
+copyright:           Schell Scivally
 category:            Game
 build-type:          Simple
 -- extra-source-files:
 cabal-version:       >=1.10
+
+source-repository head
+    type:            git
+    location:        git://github.com/schell/blocks.git
 
 executable blocks
   main-is:             Main.hs
