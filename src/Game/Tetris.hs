@@ -46,16 +46,17 @@ iterateTetrisRules = do
         blk <- uses block ((blockPos._2 +~ 20) . fromJust)
         -- Check if that block has hit the board and where.
         (hit, pos) <- uses board (`blockHasHit` blk)
+        let blk' = blockPos .~ pos $ blk
         when hit $ do
             -- Set tetris' block to nil.
             block .= Nothing
             -- Stick the block at the right position on the board.
-            board %= ((blockPos .~ pos $ blk):)
+            board %= (blk':)
             -- Set the game over condition.
             gameOver .= (pos^._2 <= 0)
         when (not hit) $ do
             -- Update the block.
-            block .= Just blk
+            block .= Just blk'
         -- Get the lines we've scored.
         foundLns <- uses board findLines
         board %= (`removeLines` foundLns)
@@ -67,7 +68,11 @@ stepTetris tetris dt
     | otherwise = execState (updateTetris dt) tetris
 
 
-blockHasHit :: Board -> Block -> (Bool, Pos)
+blockHasHit :: Board -- ^ The board.
+            -> Block -- ^ The block.
+            -> (Bool, Pos) -- ^ The stop status and new position.
+                           --   If status is True the block should be
+                           --   added to the board.
 blockHasHit b bl =
     let (x,y) = _blockPos bl
         p     = _blockPieces bl
@@ -79,9 +84,9 @@ blockHasHit b bl =
          then (True, (x, h - bh))
          -- Check for going past the x boundary.
          else if x < 0
-                then (True, (0,y))
+                then (False, (0,y))
                 else if x + bw > w
-                       then (True, (w - bw,y))
+                       then (False, (w - bw,y))
                        else collideWithBoard b bl
 
 
@@ -189,17 +194,18 @@ moveBlockHorizontalBy t@(Tetris _ mB _ _) xx = t { _block = mB' }
                     Just b  -> let (x,y) = _blockPos b
                                    b'    = b { _blockPos = (x+xx,y)}
                                in case blockHasHit (_board t) b' of
-                                      (False,_) -> Just b'
-                                      (True,_)  -> mB
+                                      (False,pos) -> Just (b & blockPos .~ pos)
+                                      (True,_)    -> mB
 
 
 rotateBlock :: Tetris -> Tetris
 rotateBlock t@(Tetris _ mB _ _) = t { _block = mB' }
     where mB' = case mB of
                     Nothing -> Nothing
-                    Just b  -> let p  = _blockPieces b
-                                   p' = transpose $ reverse p
-                               in Just $ b {_blockPieces = p'}
+                    Just b  -> let b' = b & blockPieces %~ transpose . reverse
+                               in case (t^.board) `blockHasHit` b' of
+                                      (False, pos) -> Just (b' & blockPos .~ pos)
+                                      (True,_)     -> mB
 
 
 leftBoundaryOfPieces :: Pieces -> GLfloat
