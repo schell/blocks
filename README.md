@@ -4,7 +4,9 @@ This is a tetris implementation written in Haskell.
 
 controls
 --------
-Arrows left and right move left and right.
-Arrow down drops your block down immediately.
-Space bar rotates your block.
-The `r` key resets.
+Arrows left and right move left and right. 
+Arrow down drops your block down immediately. 
+Space bar rotates your block. 
+The `r` key resets. 
+
+<img src="https://raw.github.com/schell/blocks/master/assets/screenshot.png" />
