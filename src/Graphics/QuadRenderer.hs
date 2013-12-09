@@ -122,10 +122,10 @@ initQuadRenderer = do
     let updateColor c = uniform cLoc $= c
 
     return QuadRenderer { _quadProgram = RndrProgram3D { _program = p
-                                                       , _updateModelview  = updateMV
-                                                       , _updateProjection = updatePJ
+                                                       , _setModelview  = updateMV
+                                                       , _setProjection = updatePJ
                                                        }
-                        , _rndrQuad    = rndrQuad
-                        , _updateColor = updateColor
+                        , _rndrQuad = rndrQuad
+                        , _setQuadColor = updateColor
                         }
 

@@ -40,8 +40,8 @@ frameRate :: Double
 frameRate = 1/30
 
 
-updateGame :: Clock -> State Game ()
-updateGame clk = do
+setGame :: Clock -> State Game ()
+setGame clk = do
     fps .= clk^.avgFPS
 
     evs <- use (input.inputEvents)
@@ -65,8 +65,8 @@ updateGame clk = do
 
 
 
-updateGameWithNextBlock :: Game -> IO Game
-updateGameWithNextBlock g = do
+setGameWithNextBlock :: Game -> IO Game
+setGameWithNextBlock g = do
     r <- randomRIO (0, length blockTypes -1)
     let b = newBlockWithType $ blockTypes !! r
     return $ g & tetris.block .~ Just b
@@ -84,9 +84,9 @@ instance UserData Game where
                                             _            -> False
 
     -- | Step the game forward.
-    onStep clk game = do let g = execState (updateGame clk) game
+    onStep clk game = do let g = execState (setGame clk) game
                          if isNothing $ g^.tetris.block
-                           then updateGameWithNextBlock g
+                           then setGameWithNextBlock g
                            else return g
 
     -- | Render the game.
@@ -130,8 +130,8 @@ renderBlock r b = do
         let yy = by + y + y'
         zipDo xs row $ \x' draw -> when draw $ do
             let xx = bx+x+x'
-            q^.updateColor $ colorForBlock b
-            q^.quadProgram.updateModelview $ concat $ mat `multiply` tns xx yy `multiply` scale'
+            q^.setQuadColor $ colorForBlock b
+            q^.quadProgram.setModelview $ concat $ mat `multiply` tns xx yy `multiply` scale'
             q^.rndrQuad
 
 
@@ -147,8 +147,8 @@ renderBoard r b = do
     currentProgram $= (Just $ q^.quadProgram.program)
 
     -- Render the background.
-    q^.quadProgram.updateModelview $ concat $ mat `multiply` trans `multiply` scale'
-    q^.updateColor $ Color4 0.25 0.25 0.25 1.0
+    q^.quadProgram.setModelview $ concat $ mat `multiply` trans `multiply` scale'
+    q^.setQuadColor $ Color4 0.25 0.25 0.25 1.0
     q^.rndrQuad
     -- Render the blocks.
     forM_ b $ renderBlock r
@@ -162,7 +162,7 @@ renderGame game =
             q      = _quadRndr r
             pMat   = orthoMatrix 0 (fromIntegral w) 0 (fromIntegral h) 0 1 :: Matrix GLfloat
             mat    = identityN 4 :: Matrix GLfloat
-            scaleb = scaleMatrix3d 32 32 1 :: Matrix GLfloat
+            scaleb = scaleMatrix3d 16 16 1 :: Matrix GLfloat
             tetris = _tetris game
             block  = _block tetris
             board  = _board tetris
@@ -173,22 +173,23 @@ renderGame game =
 
         currentProgram $= (Just $ q^.quadProgram.program)
 
-        q^.quadProgram.updateProjection $ concat pMat
+        q^.quadProgram.setProjection $ concat pMat
         renderBoard r board'
         when (_gameOver tetris) $ do
             let (w',h') = boardSize
                 (x,y)   = boardPos r
                 trans   = translationMatrix3d x y 0
                 scale   = scaleMatrix3d w' h' 1
-            q^.quadProgram.updateModelview $ concat $ mat `multiply` trans `multiply` scale
-            q^.updateColor $ Color4 0.0 0.0 0.0 0.3
+            q^.quadProgram.setModelview $ concat $ mat `multiply` trans `multiply` scale
+            q^.setQuadColor $ Color4 0.0 0.0 0.0 0.3
             q^.rndrQuad
 
-        -- Example of drawing a
+        -- Example of drawing a string.
         currentProgram $= (Just $ r^.textRndr.textProgram.program)
-        r^.textRndr.updateSampler $ Index1 0
-        r^.textRndr.textProgram.updateProjection $ concat pMat
-        r^.textRndr.textProgram.updateModelview $ concat $ mat `multiply` scaleb
+        r^.textRndr.setSampler $ Index1 0
+        r^.textRndr.setTextColor $ Color4 1.0 1.0 1.0 1.0
+        r^.textRndr.textProgram.setProjection $ concat pMat
+        r^.textRndr.textProgram.setModelview $ concat $ mat `multiply` scaleb
         r^.textRndr.drawText $ "Score: " ++ (show $ game^.score)
 
 

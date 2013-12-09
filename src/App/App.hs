@@ -27,13 +27,13 @@ data App a = App { _userData   :: a
 type AppVar a = MVar (App a)
 
 
-runApp :: UserData a => a -> IO ()
-runApp userData = initializeApp userData >>= startWithMVar
+runApp :: UserData a => String -> a -> IO ()
+runApp title userData = initializeApp title userData >>= startWithMVar
 
 
-initializeApp :: UserData a => a -> IO (AppVar a)
-initializeApp userData = do
-    mWin <- initGLFW
+initializeApp :: UserData a => String -> a -> IO (AppVar a)
+initializeApp title userData = do
+    mWin <- initGLFW title
     case mWin of
         Nothing  -> do putStrLn "Could not create a window."
                        exitFailure
@@ -124,8 +124,8 @@ stepApp mvar = do
                       onQuit $ _userData app
                       void shutdown
 
-initGLFW :: IO (Maybe Window)
-initGLFW = do
+initGLFW :: String -> IO (Maybe Window)
+initGLFW s = do
     putStrLn "Initializing the OpenGL window and context."
     True <- Graphics.UI.GLFW.init
     -- Set our window hints.
@@ -133,13 +133,11 @@ initGLFW = do
     -- Get the prime monitor.
     --mMon  <- getPrimaryMonitor
     -- Create our window.
-    mWin <- createWindow 800 600 "App" Nothing Nothing
+    mWin <- createWindow 800 600 s Nothing Nothing
     when (isJust mWin) $
         do let Just w = mWin
            -- Window will show at upper left corner.
            setWindowPos w 0 0
-           -- Set the window title.
-           setWindowTitle w "Arborgeddon"
 
     return mWin
 

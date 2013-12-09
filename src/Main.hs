@@ -12,7 +12,7 @@ main :: IO ()
 main = do
     args <- getArgs
     case getOpt Permute mainOptions args of
-        ( opts, _,   []) -> runApp $ newGame {_options = gatherOptions opts}
+        ( opts, _,   []) -> runApp "Tetris" $ newGame {_options = gatherOptions opts}
         (    _, _, msgs) -> error $ concat msgs ++ usageInfo header mainOptions
 
 

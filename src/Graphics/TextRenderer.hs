@@ -39,9 +39,11 @@ fragSrc = B.intercalate "\n"
     [ "varying vec2 vTex;"
 
     , "uniform sampler2D sampler;"
+    , "uniform vec4 color;"
 
     , "void main() {"
-    , "    gl_FragColor = texture2D(sampler, vec2(vTex.s,vTex.t));"
+    , "    vec4 tc = texture2D(sampler, vec2(vTex.s,vTex.t));"
+    , "    gl_FragColor = vec4(tc.r*color.r,tc.g*color.g,tc.b*color.b,tc.a*color.a);"
     , "}"
     ]
 
@@ -73,7 +75,9 @@ initTextRenderer texFP = do
                            glUniformMatrix4fv pj 1 1 ptr
 
     sLoc <- get $ uniformLocation p "sampler"
+    cLoc <- get $ uniformLocation p "color"
     let updateSampler s = uniform sLoc $= s
+        updateColor c   = uniform cLoc $= c
 
     -- Load the texture.
     mTObj <- initTexture (texFP ++ "/text.png") 0
@@ -106,10 +110,11 @@ initTextRenderer texFP = do
                         deleteObjectNames [i,j]
 
     return TextRenderer { _textProgram    = RndrProgram3D { _program = p
-                                                          , _updateModelview  = updateMV
-                                                          , _updateProjection = updatePJ
+                                                          , _setModelview  = updateMV
+                                                          , _setProjection = updatePJ
                                                           }
-                        , _updateSampler = updateSampler
+                        , _setSampler = updateSampler
+                        , _setTextColor = updateColor
                         , _drawText = drawText
                         }
 
