@@ -2,7 +2,7 @@ module Graphics.Renderer where
 
 import           Graphics.Types
 import           Graphics.QuadRenderer
-import           Graphics.TexRenderer
+import           Graphics.TextRenderer
 import           Graphics.Rendering.OpenGL
 import           Data.List (intercalate)
 
@@ -35,9 +35,9 @@ initRenderer fp = do
     printGraphicStats
     setGraphicDefaults
     quadRndr <- initQuadRenderer
-    texRndr  <- initTexRenderer fp
+    textRndr  <- initTextRenderer fp
     return $ Renderer { _screenSize = (0,0)
                       , _quadRndr   = quadRndr
-                      , _texRndr    = texRndr
+                      , _textRndr   = textRndr
                       }
 

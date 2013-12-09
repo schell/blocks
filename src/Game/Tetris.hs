@@ -17,6 +17,7 @@ newTetris = Tetris { _board = []
                    , _block = Nothing
                    , _timer = 0
                    , _gameOver = False
+                   , _lineCount = 0
                    }
 
 
@@ -59,6 +60,7 @@ iterateTetrisRules = do
             block .= Just blk'
         -- Get the lines we've scored.
         foundLns <- uses board findLines
+        lineCount += length foundLns
         board %= (`removeLines` foundLns)
 
 
@@ -188,24 +190,24 @@ moveBlockDown t
 
 
 moveBlockHorizontalBy :: Tetris -> GLfloat -> Tetris
-moveBlockHorizontalBy t@(Tetris _ mB _ _) xx = t { _block = mB' }
-    where mB' = case mB of
+moveBlockHorizontalBy t xx = t { _block = mB' }
+    where mB' = case t^.block of
                     Nothing -> Nothing
                     Just b  -> let (x,y) = _blockPos b
                                    b'    = b { _blockPos = (x+xx,y)}
                                in case blockHasHit (_board t) b' of
                                       (False,pos) -> Just (b & blockPos .~ pos)
-                                      (True,_)    -> mB
+                                      (True,_)    -> t^.block
 
 
 rotateBlock :: Tetris -> Tetris
-rotateBlock t@(Tetris _ mB _ _) = t { _block = mB' }
-    where mB' = case mB of
+rotateBlock t = t { _block = mB' }
+    where mB' = case t^.block of
                     Nothing -> Nothing
                     Just b  -> let b' = b & blockPieces %~ transpose . reverse
                                in case (t^.board) `blockHasHit` b' of
                                       (False, pos) -> Just (b' & blockPos .~ pos)
-                                      (True,_)     -> mB
+                                      (True,_)     -> t^.block
 
 
 leftBoundaryOfPieces :: Pieces -> GLfloat

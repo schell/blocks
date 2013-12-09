@@ -18,11 +18,11 @@ data RndrProgram3D = RndrProgram3D { _program :: Program
 makeLenses ''RndrProgram3D
 
 
-data TexRenderer = TexRenderer { _texProgram :: RndrProgram3D
-                               , _updateSampler :: Index1 GLint -> IO ()
-                               , _drawTex :: IO ()
-                               }
-makeLenses ''TexRenderer
+data TextRenderer = TextRenderer { _textProgram :: RndrProgram3D
+                                 , _updateSampler :: Index1 GLint -> IO ()
+                                 , _drawText :: String -> IO ()
+                                 }
+makeLenses ''TextRenderer
 
 data QuadRenderer = QuadRenderer { _quadProgram :: RndrProgram3D
                                  , _rndrQuad    :: IO ()
@@ -31,7 +31,7 @@ data QuadRenderer = QuadRenderer { _quadProgram :: RndrProgram3D
 makeLenses ''QuadRenderer
 
 data Renderer = Renderer { _quadRndr   :: QuadRenderer
-                         , _texRndr    :: TexRenderer
+                         , _textRndr   :: TextRenderer
                          , _screenSize :: (GLfloat, GLfloat)
                          }
 makeLenses ''Renderer

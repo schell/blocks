@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Graphics.TexRenderer where
+module Graphics.TextRenderer where
 
 import           Graphics.Utils
 import           Graphics.Types
@@ -54,9 +54,9 @@ uvDescriptor :: VertexArrayDescriptor [Float]
 uvDescriptor = vertDescriptor
 
 
-initTexRenderer :: FilePath -> IO TexRenderer
-initTexRenderer texFP = do
-    putStrLn "Tex shader."
+initTextRenderer :: FilePath -> IO TextRenderer
+initTextRenderer texFP = do
+    putStrLn "Text shader."
     v <- makeShader VertexShader vertSrc
     f <- makeShader FragmentShader fragSrc
 
@@ -82,36 +82,34 @@ initTexRenderer texFP = do
         exitFailure
 
     let Just t = mTObj
-        verts  = [ 0.0, 0.0
-                 , 1.0, 0.0
-                 , 1.0, 1.0
-                 , 0.0, 1.0
-                 ] :: [Float]
-        uvs    = verts
-        size   = length verts * sizeOf (undefined :: Float)
-    [i,j] <- genObjectNames 2
-    -- Buffer the verts
-    bindVBO i vertDescriptor $ AttribLocation 0
-    withArray verts $ \ptr ->
-        bufferData ArrayBuffer $= (fromIntegral size, ptr, StaticDraw)
-    -- Buffer the uvs
-    bindVBO j uvDescriptor $ AttribLocation 1
-    withArray uvs $ \ptr ->
-        bufferData ArrayBuffer $= (fromIntegral size, ptr, StaticDraw)
 
-    let drawPic = do texture Texture2D $= Enabled 
-                     activeTexture $= TextureUnit 0 
-                     textureBinding Texture2D $= Just t 
-                     bindVBO i vertDescriptor $ AttribLocation 0
-                     bindVBO j uvDescriptor $ AttribLocation 1
-                     drawArrays TriangleFan 0 4
-                     bindBuffer ArrayBuffer $= Nothing
+    let drawText s = do let verts  = stringToVerts s
+                            uvs    = stringToUVs s
+                            size   = length verts * sizeOf (undefined :: Float)
+                        [i,j] <- genObjectNames 2
+                        -- Buffer the verts
+                        bindVBO i vertDescriptor $ AttribLocation 0
+                        withArray verts $ \ptr ->
+                            bufferData ArrayBuffer $= (fromIntegral size, ptr, StaticDraw)
+                        -- Buffer the uvs
+                        bindVBO j uvDescriptor $ AttribLocation 1
+                        withArray uvs $ \ptr ->
+                            bufferData ArrayBuffer $= (fromIntegral size, ptr, StaticDraw)
 
-    return TexRenderer { _texProgram    = RndrProgram3D { _program = p
-                                                        , _updateModelview  = updateMV
-                                                        , _updateProjection = updatePJ
-                                                        }
-                       , _updateSampler = updateSampler
-                       , _drawTex = drawPic
-                       }
+                        texture Texture2D $= Enabled
+                        activeTexture $= TextureUnit 0
+                        textureBinding Texture2D $= Just t
+                        bindVBO i vertDescriptor $ AttribLocation 0
+                        bindVBO j uvDescriptor $ AttribLocation 1
+                        drawArrays Triangles 0 $ fromIntegral (6*length s)
+                        bindBuffer ArrayBuffer $= Nothing
+                        deleteObjectNames [i,j]
+
+    return TextRenderer { _textProgram    = RndrProgram3D { _program = p
+                                                          , _updateModelview  = updateMV
+                                                          , _updateProjection = updatePJ
+                                                          }
+                        , _updateSampler = updateSampler
+                        , _drawText = drawText
+                        }
 

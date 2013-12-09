@@ -36,10 +36,11 @@ makeLenses ''Block
 type Board = [Block]
 
 
-data Tetris = Tetris { _board    :: Board
-                     , _block    :: Maybe Block
-                     , _timer    :: Double
-                     , _gameOver :: Bool
+data Tetris = Tetris { _board     :: Board
+                     , _block     :: Maybe Block
+                     , _timer     :: Double
+                     , _gameOver  :: Bool
+                     , _lineCount :: Int
                      } deriving (Show, Eq, Ord)
 makeLenses ''Tetris
 
@@ -53,6 +54,7 @@ data Game = Game { _quit     :: Bool -- ^ Whether or not the game should quit.
                  , _timeAcc  :: Double
                  , _fps      :: Double
                  , _tetris   :: Tetris
+                 , _score    :: Int
                  , _options  :: Options
                  } deriving (Show)
 makeLenses ''Game

@@ -31,6 +31,7 @@ newGame = Game { _quit = False
                , _timeAcc = 0
                , _fps = 0
                , _tetris = newTetris
+               , _score = 0
                , _options = defaultOptions
                }
 
@@ -58,6 +59,10 @@ updateGame clk = do
         trs <- use tetris
         let states = iterate (`stepTetris` frameRate) trs
         tetris .= (last $ take (steps + 1) states)
+
+    lc <- use (tetris.lineCount)
+    score .=  lc
+
 
 
 updateGameWithNextBlock :: Game -> IO Game
@@ -157,7 +162,7 @@ renderGame game =
             q      = _quadRndr r
             pMat   = orthoMatrix 0 (fromIntegral w) 0 (fromIntegral h) 0 1 :: Matrix GLfloat
             mat    = identityN 4 :: Matrix GLfloat
-            scaleb = scaleMatrix3d (fromIntegral w) (fromIntegral h) 1 :: Matrix GLfloat
+            scaleb = scaleMatrix3d 32 32 1 :: Matrix GLfloat
             tetris = _tetris game
             block  = _block tetris
             board  = _board tetris
@@ -165,12 +170,6 @@ renderGame game =
             board' = maybe board (:board) block
         -- Update the viewport to match the current window size.
         viewport $= (Position 0 0, Size (fromIntegral w) (fromIntegral h))
-        -- Example of drawing a
-        currentProgram $= (Just $ r^.texRndr.texProgram.program)
-        r^.texRndr.updateSampler $ Index1 0
-        r^.texRndr.texProgram.updateProjection $ concat pMat
-        r^.texRndr.texProgram.updateModelview $ concat $ mat `multiply` scaleb
-        r^.texRndr.drawTex
 
         currentProgram $= (Just $ q^.quadProgram.program)
 
@@ -185,5 +184,11 @@ renderGame game =
             q^.updateColor $ Color4 0.0 0.0 0.0 0.3
             q^.rndrQuad
 
+        -- Example of drawing a
+        currentProgram $= (Just $ r^.textRndr.textProgram.program)
+        r^.textRndr.updateSampler $ Index1 0
+        r^.textRndr.textProgram.updateProjection $ concat pMat
+        r^.textRndr.textProgram.updateModelview $ concat $ mat `multiply` scaleb
+        r^.textRndr.drawText $ "Score: " ++ (show $ game^.score)
 
 

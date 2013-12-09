@@ -2,6 +2,7 @@ module Graphics.Utils where
 
 import           Graphics.Rendering.OpenGL
 import           Control.Monad
+import           Data.Char
 import           System.IO (hPutStrLn, stderr)
 import           System.Exit (exitFailure)
 import qualified Data.ByteString as B
@@ -47,4 +48,59 @@ bindVBO vbo dsc loc = do
     bindBuffer ArrayBuffer $= Just vbo
     vertexAttribPointer loc $= (ToFloat, dsc)
     vertexAttribArray loc $= Enabled
+
+
+charIndex :: Char -> Int 
+charIndex = (\a -> a-33) . fromIntegral . ord
+
+
+charToIndices :: Char -> [Int]
+charToIndices ' '  = []
+charToIndices '\n' = []
+charToIndices c = i's
+    where i's = [ tl, tr, br
+                , tl, br, bl
+                ]
+          n   = charIndex c
+          n'  = n + (fromIntegral $ floor (fromIntegral n/32.0))
+          tl  = n'
+          tr  = tl+1
+          bl  = tl+33
+          br  = tl+34
+
+
+fontUVPairs :: [[GLfloat]]
+fontUVPairs = [ map (/32) [x,y] | y <- [0..6], x <- [0..32] ]
+
+
+charToUVs :: Char -> [GLfloat]
+charToUVs ' '  = [] 
+charToUVs '\n' = [] 
+charToUVs c    = concat $ map (\n -> fontUVPairs !! fromIntegral n) (charToIndices c)
+
+
+charToVerts :: Char -> [GLfloat]
+charToVerts _ = [ 0, 0
+                , 1, 0
+                , 1, 1
+
+                , 0, 0
+                , 1, 1
+                , 0, 1
+                ]
+
+
+stringToUVs :: String -> [GLfloat]
+stringToUVs = concatMap charToUVs
+
+
+stringToVerts :: String -> [Float]
+stringToVerts = fst . foldl f acc
+    where f (vs,(x,y)) c = if c == '\n' 
+                             then (vs, (0, y+1))
+                             else if c == ' '
+                                    then (vs, (x+1,y))
+                                    else (vs ++ lst x y, (x+1, y))
+          acc     = ([], (0.0, 0.0))
+          lst x y = [x,y,x+1,y,x+1,y+1,x,y,x+1,y+1,x,y+1]
 
