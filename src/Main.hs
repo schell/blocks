@@ -2,6 +2,7 @@
 module Main where
 
 import App.App
+import App.Types
 import Game.Game
 import Game.Types
 import System.Environment (getArgs)
@@ -12,7 +13,7 @@ main :: IO ()
 main = do
     args <- getArgs
     case getOpt Permute mainOptions args of
-        ( opts, _,   []) -> runApp "Tetris" $ newGame {_options = gatherOptions opts}
+        ( opts, _,   []) -> runApp "Tetris" $ makeApp {_userData = newGame {_options = gatherOptions opts}}
         (    _, _, msgs) -> error $ concat msgs ++ usageInfo header mainOptions
 
 

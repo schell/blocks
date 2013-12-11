@@ -6,33 +6,25 @@ module App.App ( App(..)
                ) where
 
 
+import App.Types
 import App.Clock
 import App.Input
-import App.TypeClasses
+import App.UserApp
 import Control.Monad.State
 import Control.Concurrent
+import Control.Lens
 import Data.Maybe
 import System.Exit                   ( exitSuccess, exitFailure )
 import Graphics.Rendering.OpenGL    hiding ( Matrix )
 import Graphics.UI.GLFW             hiding ( getTime )
 
 
-data App a = App { _userData   :: a
-                 , _userInput  :: Input
-                 , _clock      :: Clock
-                 , _window     :: Maybe Window
-                 }
-
-
-type AppVar a = MVar (App a)
-
-
-runApp :: UserData a => String -> a -> IO ()
+runApp :: String -> UserApp a -> IO ()
 runApp title userData = initializeApp title userData >>= startWithMVar
 
 
-initializeApp :: UserData a => String -> a -> IO (AppVar a)
-initializeApp title userData = do
+initializeApp :: String -> UserApp a -> IO (AppVar a)
+initializeApp title uApp = do
     mWin <- initGLFW title
     case mWin of
         Nothing  -> do putStrLn "Could not create a window."
@@ -49,56 +41,51 @@ initializeApp title userData = do
                            void getChar
                            return ()
 
-
                        -- Register our resize window function.
                        setWindowSizeCallback win $ Just (\win' w h -> do
                            app <- readMVar mvar
-                           let input     = _userInput app
-                               inState   = _inputState input
-                               events    = _inputEvents input
-                               input'    = input { _inputEvents = WindowSizeChangedTo (w,h):events
-                                                 , _inputState = inState { _windowSize = (w,h) }
-                                                 }
-                               userData' = onInput input' $ _userData app
-                           renderUserData win' userData')
+                           let input     = flip execState (_userInput app) $ do
+                                               inputEvents %= (WindowSizeChangedTo (w,h):)
+                                               inputState.windowSize .= (w,h)
+                               userData' = (app^.userApp.onInput) input (app^.userApp.userData)
+                           renderUserApp win' $ app^.userApp & userData .~ userData')
 
                        let clock' = tickClock time emptyClock
-                           app    = App { _userData   = userData
-                                        , _clock      = clock'
+                           app    = App { _userApp    = uApp
                                         , _userInput  = emptyInput
+                                        , _clock      = clock'
                                         , _window     = Just win
                                         }
                        putMVar mvar app
                        return mvar
 
 
-startWithMVar :: UserData a => AppVar a -> IO ()
+startWithMVar :: AppVar a -> IO ()
 startWithMVar mvar = do
-    app <- takeMVar mvar
-    userData' <- onStart $ _userData app
-    putMVar mvar $ app { _userData = userData' }
+    app   <- takeMVar mvar
+    uData <- app^.userApp.onStart $ app^.userApp.userData
+    putMVar mvar $ (app & userApp.userData .~ uData)
     iterateWithMVar mvar
 
 
 -- Iterates stepApp over the state until shouldQuit evaluates false.
-iterateWithMVar :: UserData a
-           => AppVar a
-           -> IO ()
+iterateWithMVar :: AppVar a
+                -> IO ()
 iterateWithMVar mvar = iterate'
     where iterate' = do app <- readMVar mvar
-                        unless (shouldQuit $ _userData app) $
+                        unless (app^.userApp.shouldQuit $ app^.userApp.userData) $
                             do stepApp mvar
                                iterate'
 
 
-renderUserData :: UserData a => Window -> a -> IO ()
-renderUserData win userData = do
+renderUserApp :: Window -> UserApp a -> IO ()
+renderUserApp win uApp = do
     clear [ColorBuffer, DepthBuffer]
-    onRender userData
+    uApp^.onRender $ uApp^.userData
     swapBuffers win
 
 
-stepApp :: UserData a => AppVar a -> IO ()
+stepApp :: AppVar a -> IO ()
 stepApp mvar = do
     app <- readMVar mvar
     case _window app of
@@ -107,21 +94,22 @@ stepApp mvar = do
             input' <- getInput win $ _userInput app
 
             let clock'     = tickClock t $ _clock app
-                userData'  = onInput input' $ _userData app
+                userData'  = (app^.userApp.onInput) input' $ app^.userApp.userData
                 app'       = app { _clock     = clock'
                                  , _userInput = input'
                                  }
 
-            userData'' <- onStep clock' userData'
-            swapMVar mvar $ app' { _userData = userData'' }
+            userData'' <- (app^.userApp.onStep) clock' userData'
+            let app'' = app' & userApp.userData .~ userData''
+            swapMVar mvar app'' 
+            renderUserApp win $ app''^.userApp
 
-            renderUserData win userData''
-
-            when (shouldQuit userData'') $ onQuit userData''
+            when ((app^.userApp.shouldQuit) userData'') $ 
+                (app^.userApp.onQuit) userData''
             return ()
 
         Nothing -> do putStrLn "Window is nothing, quitting."
-                      onQuit $ _userData app
+                      app^.userApp.onQuit $ app^.userApp.userData
                       void shutdown
 
 initGLFW :: String -> IO (Maybe Window)
