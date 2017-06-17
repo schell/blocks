@@ -23,6 +23,37 @@ defaultOptions :: Options
 defaultOptions = Options { _optAssetDir = "./assets" }
 
 
+makeApp :: UserApp Game
+makeApp = UserApp
+    -- | When we start up initialize all our rendering resources.
+    { _onStart = \g -> do rndr <- initRenderer $ g^.options.optAssetDir
+                          return $ g & renderer .~ Just rndr
+
+    -- | When we receive input, store it in our game to use later.type
+    , _onInput = \i -> execState $ do input .= i
+                                      quit  .= case i^.inputState.keysPressed of
+                                                   Key'Escape:_ -> True
+                                                   _            -> False
+
+    -- | Step the game forward.
+    , _onStep = \clk game -> do let g = execState (setGame clk) game
+                                if isNothing $ g^.tetris.block
+                                  then setGameWithNextBlock g
+                                  else return g
+
+    -- | Render the game.
+    , _onRender = \g -> when (isJust $ g^.renderer) $ renderGame g
+
+    -- | Whether or not our game should quit.
+    , _shouldQuit = _quit
+
+    -- | When quitting, let the user know.
+    , _onQuit = \g -> do putStrLn $ "Average fps: " ++ show (_fps g)
+                         putStrLn "Done!"
+
+    , _userData = newGame
+    }
+
 -- | Creates a default game.
 newGame :: Game
 newGame = Game { _quit = False
@@ -71,33 +102,6 @@ setGameWithNextBlock g = do
     let b = newBlockWithType $ blockTypes !! r
     return $ g & tetris.block .~ Just b
 
-
-instance UserData Game where
-    -- | When we start up initialize all our rendering resources.
-    onStart g = do rndr <- initRenderer $ g^.options.optAssetDir
-                   return $ g & renderer .~ Just rndr
-
-    -- | When we receive input, store it in our game to use later.type
-    onInput i = execState $ do input .= i
-                               quit  .= case i^.inputState.keysPressed of
-                                            Key'Escape:_ -> True
-                                            _            -> False
-
-    -- | Step the game forward.
-    onStep clk game = do let g = execState (setGame clk) game
-                         if isNothing $ g^.tetris.block
-                           then setGameWithNextBlock g
-                           else return g
-
-    -- | Render the game.
-    onRender g = when (isJust $ g^.renderer) $ renderGame g
-
-    -- | Whether or not our game should quit.
-    shouldQuit = _quit
-
-    -- | When quitting, let the user know.
-    onQuit game = do putStrLn $ "Average fps: " ++ show (_fps game)
-                     putStrLn "Done!"
 
 
 boardPos :: Renderer -> (GLfloat, GLfloat)
